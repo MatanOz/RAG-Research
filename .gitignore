@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+.DS_Store
+chroma_db/
+.venv/
+.vscode/
+outputs/
+data/derived/
+data/**/*.pdf

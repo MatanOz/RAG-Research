@@ -1,0 +1,7 @@
+openai
+chromadb
+pymupdf
+pyyaml
+python-dotenv
+pydantic
+scikit-learn

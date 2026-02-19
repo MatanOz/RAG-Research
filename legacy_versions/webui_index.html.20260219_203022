@@ -91,22 +91,6 @@
             <h3 id="mCost">-</h3>
           </article>
           <article class="metric-card">
-            <p>Per-Question Cost (USD)</p>
-            <h3 id="mPerQuestionCost">-</h3>
-          </article>
-          <article class="metric-card">
-            <p>Paper Build Tokens</p>
-            <h3 id="mPaperBuildTokens">-</h3>
-          </article>
-          <article class="metric-card">
-            <p>Paper Build Cost (USD)</p>
-            <h3 id="mPaperBuildCost">-</h3>
-          </article>
-          <article class="metric-card">
-            <p>Total Run Cost (USD)</p>
-            <h3 id="mRunCost">-</h3>
-          </article>
-          <article class="metric-card">
             <p>Avg Top-1 Score</p>
             <h3 id="mTop1">-</h3>
           </article>

@@ -24,10 +24,6 @@ const el = {
   mPapers: document.getElementById("mPapers"),
   mLatency: document.getElementById("mLatency"),
   mCost: document.getElementById("mCost"),
-  mPerQuestionCost: document.getElementById("mPerQuestionCost"),
-  mPaperBuildTokens: document.getElementById("mPaperBuildTokens"),
-  mPaperBuildCost: document.getElementById("mPaperBuildCost"),
-  mRunCost: document.getElementById("mRunCost"),
   mTop1: document.getElementById("mTop1"),
   mTokens: document.getElementById("mTokens"),
 };
@@ -116,38 +112,17 @@ function renderMetrics() {
   const avgLatency = data.length
     ? data.reduce((acc, r) => acc + (r.logs?.latency_ms || 0), 0) / data.length
     : null;
-  const perQuestionTotalCost = data.reduce((acc, r) => acc + (r.logs?.estimated_cost_usd || 0), 0);
-  const perQuestionAvgCost = data.length ? perQuestionTotalCost / data.length : 0;
+  const totalCost = data.reduce((acc, r) => acc + (r.logs?.estimated_cost_usd || 0), 0);
   const avgTop1 =
     data.length > 0
       ? data.reduce((acc, r) => acc + ((r.retrieval?.retrieval_scores || [0])[0] || 0), 0) / data.length
       : null;
   const totalTokens = data.reduce((acc, r) => acc + (r.logs?.total_tokens || 0), 0);
 
-  const paperBuildTokensMap = new Map();
-  const paperBuildCostMap = new Map();
-  data.forEach((r) => {
-    const pid = r.paper_id;
-    const tokens = r.logs?.paper_build_embedding_tokens || 0;
-    const cost = r.logs?.paper_build_estimated_cost_usd || 0;
-    const existingTokens = paperBuildTokensMap.get(pid) || 0;
-    const existingCost = paperBuildCostMap.get(pid) || 0;
-    if (tokens > existingTokens) paperBuildTokensMap.set(pid, tokens);
-    if (cost > existingCost) paperBuildCostMap.set(pid, cost);
-  });
-
-  const totalPaperBuildTokens = [...paperBuildTokensMap.values()].reduce((a, b) => a + b, 0);
-  const totalPaperBuildCost = [...paperBuildCostMap.values()].reduce((a, b) => a + b, 0);
-  const totalRunCost = perQuestionTotalCost + totalPaperBuildCost;
-
   el.mRecords.textContent = String(data.length || 0);
   el.mPapers.textContent = String(papers.size || 0);
   el.mLatency.textContent = avgLatency === null ? "-" : formatNum(avgLatency, 1);
-  el.mCost.textContent = `$${formatNum(perQuestionTotalCost, 6)}`;
-  el.mPerQuestionCost.textContent = `$${formatNum(perQuestionAvgCost, 6)}`;
-  el.mPaperBuildTokens.textContent = totalPaperBuildTokens.toLocaleString();
-  el.mPaperBuildCost.textContent = `$${formatNum(totalPaperBuildCost, 6)}`;
-  el.mRunCost.textContent = `$${formatNum(totalRunCost, 6)}`;
+  el.mCost.textContent = `$${formatNum(totalCost, 6)}`;
   el.mTop1.textContent = avgTop1 === null ? "-" : formatNum(avgTop1, 4);
   el.mTokens.textContent = totalTokens ? totalTokens.toLocaleString() : "0";
 }

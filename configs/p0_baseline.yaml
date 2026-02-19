@@ -4,7 +4,7 @@ pipeline_version: P0
 retrieval_params:
   embedding_model: text-embedding-3-small
   chunking_method: fixed_char
-  chunk_size: 1000
+  chunk_size: 600
   chunk_overlap: 50
   top_k: 3
   embedding_batch_size: 64
@@ -12,7 +12,7 @@ retrieval_params:
 llm_params:
   model_name: gpt-4o-mini
   temperature: 0.0
-  max_tokens: 256
+  max_tokens: 128
 
 paths:
   data_dir: data
@@ -20,9 +20,9 @@ paths:
   output_dir: outputs/P0
 
 run_control:
-  paper_ids: [1,2,3,4]
+  paper_ids: [5]
   max_papers: null
-  question_ids: [2,3]
+  question_ids: null
   max_questions_per_paper: null
 
 logging:

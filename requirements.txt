@@ -5,3 +5,4 @@ pyyaml
 python-dotenv
 pydantic
 scikit-learn
+langgraph

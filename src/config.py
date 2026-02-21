@@ -1,14 +1,14 @@
-"""YAML-based configuration loader for experiment settings."""
+"""Configuration loading for the RAG experiment pipelines."""
 
 from __future__ import annotations
 
 import os
-from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 import yaml
 from dotenv import load_dotenv
+from pydantic import BaseModel, ConfigDict, Field
 
 
 load_dotenv()
@@ -17,39 +17,62 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 DEFAULT_CONFIG_PATH = Path("configs/p0_baseline.yaml")
 
 
-@dataclass(frozen=True)
-class RetrievalParams:
+class RetrievalParams(BaseModel):
     embedding_model: str
-    chunk_size: int
-    chunk_overlap: int
-    top_k: int
+    chunking_method: str = "fixed_char"
+    chunk_size: int = Field(gt=0)
+    chunk_overlap: int = Field(ge=0)
+    top_k: int = Field(ge=1)
+    embedding_batch_size: int = Field(ge=1)
+
+    model_config = ConfigDict(extra="forbid")
 
 
-@dataclass(frozen=True)
-class LLMParams:
+class LLMParams(BaseModel):
     model_name: str
     temperature: float
-    max_tokens: int
+    max_tokens: int = Field(gt=0)
+
+    model_config = ConfigDict(extra="forbid")
 
 
-@dataclass(frozen=True)
-class Paths:
+class PathsConfig(BaseModel):
     data_dir: str
-    db_dir: str
+    chroma_dir: str
     output_dir: str
 
+    model_config = ConfigDict(extra="forbid")
 
-@dataclass(frozen=True)
-class AppConfig:
+
+class RunControl(BaseModel):
+    paper_ids: Optional[List[int]] = None
+    max_papers: Optional[int] = Field(default=None, ge=1)
+    question_ids: Optional[List[int]] = None
+    max_questions_per_paper: Optional[int] = Field(default=None, ge=1)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class LoggingConfig(BaseModel):
+    level: str = "INFO"
+    progress_every: int = Field(default=10, ge=1)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class RunnerConfig(BaseModel):
     project_name: str
     pipeline_version: str
     retrieval_params: RetrievalParams
     llm_params: LLMParams
-    paths: Paths
+    paths: PathsConfig
+    run_control: RunControl = Field(default_factory=RunControl)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
+
+    model_config = ConfigDict(extra="forbid")
 
 
-def load_config(config_path: str | Path = DEFAULT_CONFIG_PATH) -> AppConfig:
-    """Load and parse a YAML experiment config into a typed object."""
+def load_config(config_path: Path = DEFAULT_CONFIG_PATH) -> RunnerConfig:
     path = Path(config_path)
     if not path.exists():
         raise FileNotFoundError(f"Config file not found: {path}")
@@ -60,22 +83,11 @@ def load_config(config_path: str | Path = DEFAULT_CONFIG_PATH) -> AppConfig:
     if not isinstance(raw, dict):
         raise ValueError(f"Config root must be a mapping in: {path}")
 
-    try:
-        return AppConfig(
-            project_name=raw["project_name"],
-            pipeline_version=raw["pipeline_version"],
-            retrieval_params=RetrievalParams(**raw["retrieval_params"]),
-            llm_params=LLMParams(**raw["llm_params"]),
-            paths=Paths(**raw["paths"]),
-        )
-    except KeyError as exc:
-        missing_key = exc.args[0]
-        raise ValueError(f"Missing required config key: {missing_key}") from exc
+    return RunnerConfig.model_validate(raw)
 
 
-def config_as_dict(config: AppConfig) -> dict[str, Any]:
-    """Return a plain dictionary representation of an AppConfig object."""
-    return asdict(config)
+def config_as_dict(config: RunnerConfig) -> Dict[str, Any]:
+    return config.model_dump(mode="python")
 
 
 CONFIG = load_config()

@@ -5,15 +5,14 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-import shutil
-import subprocess
-import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import fitz
+import pymupdf4llm
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 @dataclass
@@ -49,6 +48,11 @@ def _require_context() -> Tuple[Any, Callable[[str, Sequence[str]], Tuple[List[L
     if CHROMA_CLIENT is None or EMBED_TEXTS_FN is None or LOGGER is None:
         raise RuntimeError("Document manager context is not initialized.")
     return CHROMA_CLIENT, EMBED_TEXTS_FN, LOGGER, REBUILT_PAPERS_THIS_RUN
+
+
+def _log_info(message: str, *args: Any) -> None:
+    if LOGGER is not None:
+        LOGGER.info(message, *args)
 
 
 def stable_collection_name(paper_id: int, chunking_method: str) -> str:
@@ -159,49 +163,25 @@ def chunk_pdf_pages(paper_id: int, page_texts: List[str], chunk_size: int, chunk
     return chunks
 
 
-def extract_markdown_with_marker(pdf_path: Union[str, Path]) -> str:
-    path = Path(pdf_path)
-    if not path.exists():
-        raise FileNotFoundError(f"PDF not found: {path}")
-
-    marker_binary = shutil.which("marker_single")
-    if marker_binary is None:
-        raise RuntimeError("marker_single CLI not found. Install marker-pdf and make sure marker_single is on PATH.")
-
-    with tempfile.TemporaryDirectory(prefix="marker_pdf_") as tmp_dir:
-        output_dir = Path(tmp_dir) / "output"
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        commands = [
-            [marker_binary, str(path), "--output_dir", str(output_dir), "--output_format", "markdown"],
-            [marker_binary, str(path), str(output_dir), "--output_format", "markdown"],
-        ]
-        last_error: Optional[subprocess.CalledProcessError] = None
-        command_succeeded = False
-        for command in commands:
-            try:
-                subprocess.run(command, check=True, capture_output=True, text=True)
-                command_succeeded = True
-                break
-            except subprocess.CalledProcessError as exc:
-                last_error = exc
-
-        if not command_succeeded:
-            stderr = (last_error.stderr or "").strip() if last_error is not None else ""
-            raise RuntimeError(f"marker_single failed for {path}: {stderr}")
-
-        markdown_files = sorted(output_dir.rglob("*.md"))
-        if not markdown_files:
-            raise RuntimeError(f"marker_single did not produce markdown output for {path}")
-
-        return markdown_files[0].read_text(encoding="utf-8")
+def extract_markdown_with_pymupdf(pdf_path: Path) -> str:
+    if not pdf_path.exists():
+        raise FileNotFoundError(f"PDF not found: {pdf_path}")
+    _log_info("Starting extraction for %s...", pdf_path.name)
+    markdown_text = pymupdf4llm.to_markdown(str(pdf_path))
+    _log_info("Extraction finished (%s chars)", len(markdown_text))
+    return markdown_text
 
 
 def clean_markdown_references(markdown_text: str) -> str:
-    reference_heading = re.compile(r"^##\s*(references|bibliography)\b", flags=re.IGNORECASE | re.MULTILINE)
-    match = reference_heading.search(markdown_text)
+    reference_pattern = re.compile(
+        r"(?im)^\s*#*\s*.*(?:references|bibliography|literature cited|notes and references).*$",
+        flags=re.MULTILINE,
+    )
+    match = reference_pattern.search(markdown_text)
     if not match:
         return markdown_text
+    found_header = match.group(0).strip()
+    _log_info("Cleaned references. Truncated from match: %s", found_header)
     return markdown_text[: match.start()].rstrip()
 
 
@@ -250,10 +230,41 @@ def extract_heuristic_metadata(chunk_text: str) -> Dict[str, bool]:
     }
 
 
-def semantic_chunk_markdown(paper_id: int, markdown_text: str) -> List[ChunkRecord]:
+def _is_section_header(line: str) -> bool:
+    patterns = [
+        r"^#+\s+.+$",
+        r"^\s*\*\*[^*]+\*\*\s*$",
+        r"^\d+(\.\d+)*\s+[A-Z].+$",
+        r"^[A-Z\s]{3,30}$",
+    ]
+    return any(re.match(pattern, line) for pattern in patterns)
+
+
+def _section_name_from_header(line: str) -> str:
+    stripped = line.strip()
+    if re.match(r"^#+\s+.+$", stripped):
+        return re.sub(r"^#+\s*", "", stripped).strip()
+    if re.match(r"^\s*\*\*[^*]+\*\*\s*$", stripped):
+        return stripped.strip("* ").strip()
+    return stripped
+
+
+def semantic_chunk_markdown(
+    paper_id: int,
+    markdown_text: str,
+    chunk_size: int,
+    chunk_overlap: int,
+) -> List[ChunkRecord]:
+    if chunk_overlap >= chunk_size:
+        raise ValueError("chunk_overlap must be smaller than chunk_size for semantic_markdown chunking")
+
     cleaned_markdown = clean_markdown_references(markdown_text)
-    header_pattern = re.compile(r"^(##|###)\s+(.+?)\s*$")
     lines = cleaned_markdown.splitlines()
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        separators=["\n\n", "\n", " ", ""],
+    )
 
     chunks: List[ChunkRecord] = []
     current_section = "preamble"
@@ -267,27 +278,47 @@ def semantic_chunk_markdown(paper_id: int, markdown_text: str) -> List[ChunkReco
         if not chunk_text:
             return
 
-        metadata: Dict[str, Any] = {
-            "paper_id": paper_id,
-            "chunk_index": chunk_index,
-            "section_name": current_section,
-        }
-        metadata.update(extract_heuristic_metadata(chunk_text))
-        chunks.append(
-            ChunkRecord(
-                chunk_id=f"paper_{paper_id:02d}_chunk_{chunk_index:05d}",
-                text=chunk_text,
-                metadata=metadata,
+        if len(chunk_text) > 1200:
+            sub_chunks = splitter.split_text(chunk_text)
+            _log_info(
+                "Section '%s' too long (%s chars), split into %s sub-chunks using size=%s.",
+                current_section,
+                len(chunk_text),
+                len(sub_chunks),
+                chunk_size,
             )
-        )
-        chunk_index += 1
+        else:
+            sub_chunks = [chunk_text]
+
+        for sub_chunk_text in sub_chunks:
+            metadata: Dict[str, Any] = {
+                "paper_id": paper_id,
+                "chunk_index": chunk_index,
+                "section_name": current_section,
+            }
+            metadata.update(extract_heuristic_metadata(sub_chunk_text))
+            chunks.append(
+                ChunkRecord(
+                    chunk_id=f"paper_{paper_id:02d}_chunk_{chunk_index:05d}",
+                    text=sub_chunk_text,
+                    metadata=metadata,
+                )
+            )
+            chunk_index += 1
 
     for line in lines:
         stripped = line.strip()
-        header_match = header_pattern.match(stripped)
-        if header_match:
+        if _is_section_header(stripped):
+            section_name = _section_name_from_header(stripped)
+            if re.search(r"(references|bibliography|literature cited|notes and references)", section_name, flags=re.IGNORECASE):
+                flush_chunk()
+                _log_info(
+                    "Reference section detected during chunking: '%s'. Stopping paper processing.",
+                    stripped,
+                )
+                break
             flush_chunk()
-            current_section = header_match.group(2).strip()
+            current_section = section_name
             current_lines.append(stripped)
             continue
         current_lines.append(line)
@@ -364,6 +395,7 @@ def get_or_build_chroma_collection(paper_id: int, pdf_path: Path, config: Any) -
         "missing" if existing_collection is None else "fingerprint_changed",
         chroma_dir,
     )
+    logger.info("paper=%s build start | method=%s", paper_id, chunking_method)
 
     if existing_collection is not None:
         chroma_client.delete_collection(name=collection_name)
@@ -378,10 +410,16 @@ def get_or_build_chroma_collection(paper_id: int, pdf_path: Path, config: Any) -
             chunk_overlap=config.retrieval_params.chunk_overlap,
         )
     elif chunking_method == "semantic_markdown":
-        markdown_text = extract_markdown_with_marker(pdf_path)
-        chunks = semantic_chunk_markdown(paper_id=paper_id, markdown_text=markdown_text)
+        markdown_text = extract_markdown_with_pymupdf(pdf_path)
+        chunks = semantic_chunk_markdown(
+            paper_id=paper_id,
+            markdown_text=markdown_text,
+            chunk_size=config.retrieval_params.chunk_size,
+            chunk_overlap=config.retrieval_params.chunk_overlap,
+        )
     else:
         raise ValueError(f"Unsupported chunking method: {chunking_method}")
+    logger.info("Processing paper %s... Generated %s chunks.", paper_id, len(chunks))
 
     logger.info(
         "paper=%s chunking done | method=%s chunks=%s chunk_size=%s overlap=%s",
@@ -414,5 +452,6 @@ def get_or_build_chroma_collection(paper_id: int, pdf_path: Path, config: Any) -
     current_fp["paper_build_finished_at_utc"] = datetime.now(timezone.utc).isoformat()
     write_fingerprint(fp_path, current_fp)
     rebuilt_papers.add(paper_id)
+    logger.info("paper=%s total chunks added to ChromaDB=%s", paper_id, len(chunks))
     logger.info("paper=%s chroma build complete | collection=%s chunks=%s", paper_id, collection_name, len(chunks))
     return collection, paper_build_tokens

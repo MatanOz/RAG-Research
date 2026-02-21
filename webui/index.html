@@ -30,13 +30,21 @@
         <div class="field-group">
           <label for="runPathInput">Or fetch run path (when served from repo root)</label>
           <div class="inline">
-            <input id="runPathInput" type="text" value="/outputs/P0/run_20260219_171613.jsonl" />
+            <input id="runPathInput" type="text" value="/outputs/P0/" />
             <button id="loadPathBtn">Load Path</button>
           </div>
         </div>
 
         <div class="field-group">
-          <button id="loadLatestBtn" class="ghost">Load Latest From outputs/P0</button>
+          <label for="latestPipelineSelect">Load latest pipeline output</label>
+          <div class="inline">
+            <select id="latestPipelineSelect">
+              <option value="P0" selected>P0</option>
+              <option value="P1">P1</option>
+            </select>
+            <button id="loadLatestBtn" class="ghost">Load Latest</button>
+          </div>
+          <p class="status latest-source" id="latestSourceMeta">Selected latest source: outputs/P0</p>
         </div>
 
         <h2>Filters</h2>
@@ -175,6 +183,6 @@
       </div>
     </template>
 
-    <script src="./app.js" defer></script>
+    <script src="./app.js?v=20260221_1" defer></script>
   </body>
 </html>

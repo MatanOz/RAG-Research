@@ -1,9 +1,10 @@
 openai
 chromadb
 pymupdf
+pymupdf4llm
 pyyaml
 python-dotenv
 pydantic
 scikit-learn
 langgraph
-marker-pdf
+langchain-text-splitters

@@ -159,6 +159,11 @@ select {
   min-width: 0;
 }
 
+#latestPipelineSelect {
+  width: 6rem;
+  flex: 0 0 6rem;
+}
+
 button {
   border: 1px solid transparent;
   border-radius: 10px;
@@ -182,6 +187,10 @@ button.ghost {
   margin: 0.9rem 0 0;
   color: var(--muted);
   font-size: 0.84rem;
+}
+
+.latest-source {
+  margin-top: 0.4rem;
 }
 
 .metrics-panel,

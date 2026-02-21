@@ -20,9 +20,9 @@ paths:
   output_dir: outputs/P0
 
 run_control:
-  paper_ids: [5]
+  paper_ids: [1]
   max_papers: null
-  question_ids: null
+  question_ids: [10,11,12,13,14,15,16,17,18,19]
   max_questions_per_paper: null
 
 logging:

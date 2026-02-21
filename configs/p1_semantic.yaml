@@ -4,8 +4,8 @@ pipeline_version: P1
 retrieval_params:
   embedding_model: text-embedding-3-small
   chunking_method: semantic_markdown
-  chunk_size: 600
-  chunk_overlap: 50
+  chunk_size: 1000
+  chunk_overlap: 150
   top_k: 3
   embedding_batch_size: 64
 
@@ -20,9 +20,9 @@ paths:
   output_dir: outputs/P1
 
 run_control:
-  paper_ids: [8]
+  paper_ids: [1]
   max_papers: null
-  question_ids: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+  question_ids: [10,11,12,13,14,15,16,17,18,19]
   max_questions_per_paper: null
 
 logging:

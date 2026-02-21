@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
+import shutil
+import subprocess
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import fitz
 
@@ -47,8 +51,8 @@ def _require_context() -> Tuple[Any, Callable[[str, Sequence[str]], Tuple[List[L
     return CHROMA_CLIENT, EMBED_TEXTS_FN, LOGGER, REBUILT_PAPERS_THIS_RUN
 
 
-def stable_collection_name(paper_id: int) -> str:
-    return f"paper_{paper_id:02d}"
+def stable_collection_name(paper_id: int, chunking_method: str) -> str:
+    return f"paper_{paper_id:02d}_{chunking_method}"
 
 
 def fingerprint_path(chroma_dir: Path, paper_id: int) -> Path:
@@ -155,6 +159,159 @@ def chunk_pdf_pages(paper_id: int, page_texts: List[str], chunk_size: int, chunk
     return chunks
 
 
+def extract_markdown_with_marker(pdf_path: Union[str, Path]) -> str:
+    path = Path(pdf_path)
+    if not path.exists():
+        raise FileNotFoundError(f"PDF not found: {path}")
+
+    marker_binary = shutil.which("marker_single")
+    if marker_binary is None:
+        raise RuntimeError("marker_single CLI not found. Install marker-pdf and make sure marker_single is on PATH.")
+
+    with tempfile.TemporaryDirectory(prefix="marker_pdf_") as tmp_dir:
+        output_dir = Path(tmp_dir) / "output"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        commands = [
+            [marker_binary, str(path), "--output_dir", str(output_dir), "--output_format", "markdown"],
+            [marker_binary, str(path), str(output_dir), "--output_format", "markdown"],
+        ]
+        last_error: Optional[subprocess.CalledProcessError] = None
+        command_succeeded = False
+        for command in commands:
+            try:
+                subprocess.run(command, check=True, capture_output=True, text=True)
+                command_succeeded = True
+                break
+            except subprocess.CalledProcessError as exc:
+                last_error = exc
+
+        if not command_succeeded:
+            stderr = (last_error.stderr or "").strip() if last_error is not None else ""
+            raise RuntimeError(f"marker_single failed for {path}: {stderr}")
+
+        markdown_files = sorted(output_dir.rglob("*.md"))
+        if not markdown_files:
+            raise RuntimeError(f"marker_single did not produce markdown output for {path}")
+
+        return markdown_files[0].read_text(encoding="utf-8")
+
+
+def clean_markdown_references(markdown_text: str) -> str:
+    reference_heading = re.compile(r"^##\s*(references|bibliography)\b", flags=re.IGNORECASE | re.MULTILINE)
+    match = reference_heading.search(markdown_text)
+    if not match:
+        return markdown_text
+    return markdown_text[: match.start()].rstrip()
+
+
+def extract_heuristic_metadata(chunk_text: str) -> Dict[str, bool]:
+    has_units = bool(
+        re.search(
+            r"\d+\s?(mg|g|mL|L|mmol|mol|°C|K|nm|cm|%|h|min|hours|minutes)\b",
+            chunk_text,
+            flags=re.IGNORECASE,
+        )
+    )
+
+    procedure_roots = [
+        "stir",
+        "heat",
+        "dissolv",
+        "reflux",
+        "yield",
+        "wash",
+        "dry",
+        "precipitat",
+        "filter",
+        "add",
+        "dropwise",
+    ]
+    procedure_hits = 0
+    for root in procedure_roots:
+        if re.search(rf"\b{root}\w*\b", chunk_text, flags=re.IGNORECASE):
+            procedure_hits += 1
+    is_procedure = procedure_hits >= 2
+
+    has_material_terms = bool(
+        re.search(
+            r"\b(THF|DMF|DCM|EtOH|MeOH|DMSO|water|ether|solvent|reagent|catalyst|acid|base|buffer)\b",
+            chunk_text,
+            flags=re.IGNORECASE,
+        )
+    )
+    has_formula = bool(re.search(r"\b[A-Z][a-z]?\d+\b", chunk_text))
+    has_materials = has_material_terms or has_formula
+
+    return {
+        "has_units": has_units,
+        "is_procedure": is_procedure,
+        "has_materials": has_materials,
+    }
+
+
+def semantic_chunk_markdown(paper_id: int, markdown_text: str) -> List[ChunkRecord]:
+    cleaned_markdown = clean_markdown_references(markdown_text)
+    header_pattern = re.compile(r"^(##|###)\s+(.+?)\s*$")
+    lines = cleaned_markdown.splitlines()
+
+    chunks: List[ChunkRecord] = []
+    current_section = "preamble"
+    current_lines: List[str] = []
+    chunk_index = 0
+
+    def flush_chunk() -> None:
+        nonlocal chunk_index, current_lines
+        chunk_text = "\n".join(current_lines).strip()
+        current_lines = []
+        if not chunk_text:
+            return
+
+        metadata: Dict[str, Any] = {
+            "paper_id": paper_id,
+            "chunk_index": chunk_index,
+            "section_name": current_section,
+        }
+        metadata.update(extract_heuristic_metadata(chunk_text))
+        chunks.append(
+            ChunkRecord(
+                chunk_id=f"paper_{paper_id:02d}_chunk_{chunk_index:05d}",
+                text=chunk_text,
+                metadata=metadata,
+            )
+        )
+        chunk_index += 1
+
+    for line in lines:
+        stripped = line.strip()
+        header_match = header_pattern.match(stripped)
+        if header_match:
+            flush_chunk()
+            current_section = header_match.group(2).strip()
+            current_lines.append(stripped)
+            continue
+        current_lines.append(line)
+
+    flush_chunk()
+
+    if chunks:
+        return chunks
+
+    empty_metadata: Dict[str, Any] = {
+        "paper_id": paper_id,
+        "chunk_index": 0,
+        "section_name": "preamble",
+    }
+    empty_metadata.update(extract_heuristic_metadata(""))
+    return [
+        ChunkRecord(
+            chunk_id=f"paper_{paper_id:02d}_chunk_00000",
+            text="",
+            metadata=empty_metadata,
+        )
+    ]
+
+
 def batched(items: Sequence[Any], batch_size: int) -> Iterable[Sequence[Any]]:
     for offset in range(0, len(items), batch_size):
         yield items[offset : offset + batch_size]
@@ -166,7 +323,8 @@ def get_or_build_chroma_collection(paper_id: int, pdf_path: Path, config: Any) -
     chroma_dir.mkdir(parents=True, exist_ok=True)
     (chroma_dir / "meta").mkdir(parents=True, exist_ok=True)
 
-    collection_name = stable_collection_name(paper_id)
+    chunking_method = config.retrieval_params.chunking_method
+    collection_name = stable_collection_name(paper_id, chunking_method)
     fp_path = fingerprint_path(chroma_dir, paper_id)
     current_fp = build_fingerprint(paper_id=paper_id, pdf_path=pdf_path, config=config)
     existing_fp = read_fingerprint(fp_path)
@@ -211,18 +369,24 @@ def get_or_build_chroma_collection(paper_id: int, pdf_path: Path, config: Any) -
         chroma_client.delete_collection(name=collection_name)
 
     collection = chroma_client.get_or_create_collection(name=collection_name, metadata={"hnsw:space": "cosine"})
-    page_texts = extract_pdf_pages(pdf_path)
-    chunks = chunk_pdf_pages(
-        paper_id=paper_id,
-        page_texts=page_texts,
-        chunk_size=config.retrieval_params.chunk_size,
-        chunk_overlap=config.retrieval_params.chunk_overlap,
-    )
+    if chunking_method == "fixed_char":
+        page_texts = extract_pdf_pages(pdf_path)
+        chunks = chunk_pdf_pages(
+            paper_id=paper_id,
+            page_texts=page_texts,
+            chunk_size=config.retrieval_params.chunk_size,
+            chunk_overlap=config.retrieval_params.chunk_overlap,
+        )
+    elif chunking_method == "semantic_markdown":
+        markdown_text = extract_markdown_with_marker(pdf_path)
+        chunks = semantic_chunk_markdown(paper_id=paper_id, markdown_text=markdown_text)
+    else:
+        raise ValueError(f"Unsupported chunking method: {chunking_method}")
 
     logger.info(
         "paper=%s chunking done | method=%s chunks=%s chunk_size=%s overlap=%s",
         paper_id,
-        config.retrieval_params.chunking_method,
+        chunking_method,
         len(chunks),
         config.retrieval_params.chunk_size,
         config.retrieval_params.chunk_overlap,

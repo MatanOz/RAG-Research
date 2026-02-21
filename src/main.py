@@ -14,6 +14,7 @@ from openai import OpenAI
 
 from src.config import DEFAULT_CONFIG_PATH, OPENAI_API_KEY, RunnerConfig, load_config
 from src.pipelines.p0_pipeline import P0_Pipeline
+from src.pipelines.p1_pipeline import P1_Pipeline
 from src.utils.document_manager import (
     get_or_build_chroma_collection,
     initialize_document_manager,
@@ -21,6 +22,10 @@ from src.utils.document_manager import (
 )
 
 DEFAULT_GOLD_PATH = Path("specs/gold_master_v4_text_plus_ids.json")
+PIPELINE_REGISTRY = {
+    "P0": P0_Pipeline,
+    "P1": P1_Pipeline,
+}
 
 
 def setup_logging(level: str) -> logging.Logger:
@@ -109,7 +114,11 @@ def run_pipeline(config_path: Path = DEFAULT_CONFIG_PATH, gold_path: Path = DEFA
     openai_client = OpenAI(api_key=OPENAI_API_KEY)
     chroma_client = chromadb.PersistentClient(path=str(Path(config.paths.chroma_dir)))
 
-    pipeline = P0_Pipeline(
+    pipeline_class = PIPELINE_REGISTRY.get(config.pipeline_version)
+    if pipeline_class is None:
+        raise ValueError(f"Unsupported pipeline_version '{config.pipeline_version}'. Expected one of: {sorted(PIPELINE_REGISTRY.keys())}")
+
+    pipeline = pipeline_class(
         pipeline_version=config.pipeline_version,
         config=config,
         openai_client=openai_client,

@@ -8,3 +8,4 @@ chroma_db/
 outputs/
 data/derived/
 data/**/*.pdf
+.venv_py39_backup/

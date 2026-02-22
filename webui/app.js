@@ -9,7 +9,9 @@ const el = {
   fileInput: document.getElementById("fileInput"),
   runPathInput: document.getElementById("runPathInput"),
   loadPathBtn: document.getElementById("loadPathBtn"),
+  latestPipelineSelect: document.getElementById("latestPipelineSelect"),
   loadLatestBtn: document.getElementById("loadLatestBtn"),
+  latestSourceMeta: document.getElementById("latestSourceMeta"),
   paperFilter: document.getElementById("paperFilter"),
   typeFilter: document.getElementById("typeFilter"),
   answerableFilter: document.getElementById("answerableFilter"),
@@ -296,18 +298,42 @@ async function loadFromPath(path) {
   applyData(records, path);
 }
 
-async function resolveLatestRunPath() {
-  const indexRes = await fetch("/outputs/P0/");
+function updateLatestButtonLabel() {
+  if (!el.latestPipelineSelect) return;
+  const pipeline = String(el.latestPipelineSelect.value || "P0").toUpperCase();
+  if (el.latestSourceMeta) {
+    el.latestSourceMeta.textContent = `Selected latest source: outputs/${pipeline}`;
+  }
+  if (el.loadLatestBtn) {
+    el.loadLatestBtn.setAttribute("data-pipeline", pipeline);
+  }
+}
+
+function getSelectedPipeline() {
+  if (!el.latestPipelineSelect) {
+    throw new Error("Pipeline selector is missing in the page. Hard refresh the WebUI and try again.");
+  }
+  const pipeline = String(el.latestPipelineSelect.value || "").toUpperCase();
+  if (!["P0", "P1"].includes(pipeline)) {
+    throw new Error(`Unsupported pipeline selection: ${pipeline}`);
+  }
+  return pipeline;
+}
+
+async function resolveLatestRunPath(pipeline) {
+  const safePipeline = String(pipeline).toUpperCase();
+  const dirPath = `/outputs/${safePipeline}/`;
+  const indexRes = await fetch(dirPath);
   if (!indexRes.ok) {
-    throw new Error("Cannot access /outputs/P0/. Serve the project root with an HTTP server.");
+    throw new Error(`Cannot access ${dirPath}. Serve the project root with an HTTP server.`);
   }
   const html = await indexRes.text();
   const matches = [...html.matchAll(/href="(run_\d+_\d+\.jsonl)"/g)].map((m) => m[1]);
   if (!matches.length) {
-    throw new Error("No run_*.jsonl files found in /outputs/P0/.");
+    throw new Error(`No run_*.jsonl files found in ${dirPath}.`);
   }
   matches.sort();
-  return `/outputs/P0/${matches[matches.length - 1]}`;
+  return `${dirPath}${matches[matches.length - 1]}`;
 }
 
 el.fileInput.addEventListener("change", async (evt) => {
@@ -338,9 +364,21 @@ el.loadPathBtn.addEventListener("click", async () => {
 
 el.loadLatestBtn.addEventListener("click", async () => {
   try {
-    const latest = await resolveLatestRunPath();
+    const pipeline = getSelectedPipeline();
+    setStatus(`Loading latest run from outputs/${pipeline}...`);
+    const latest = await resolveLatestRunPath(pipeline);
     el.runPathInput.value = latest;
     await loadFromPath(latest);
+  } catch (err) {
+    setStatus(err.message, true);
+  }
+});
+
+el.latestPipelineSelect?.addEventListener("change", () => {
+  updateLatestButtonLabel();
+  try {
+    const pipeline = getSelectedPipeline();
+    setStatus(`Selected latest source: outputs/${pipeline}`);
   } catch (err) {
     setStatus(err.message, true);
   }
@@ -351,4 +389,5 @@ el.loadLatestBtn.addEventListener("click", async () => {
 });
 el.searchInput.addEventListener("input", applyFilters);
 
+updateLatestButtonLabel();
 setStatus("Load a run file to begin.");

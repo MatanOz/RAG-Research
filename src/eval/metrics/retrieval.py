@@ -57,6 +57,8 @@ def evaluate_retrieval(
 ) -> Dict[str, Any]:
     gold_ids = record.get("gold_evidence_para_ids", []) if isinstance(record, dict) else []
     if not gold_ids:
+        gold_ids = gold_record.get("gold_evidence_para_ids", []) if isinstance(gold_record, dict) else []
+    if not gold_ids:
         gold_ids = gold_record.get("evidence_para_ids", []) if isinstance(gold_record, dict) else []
 
     fallback_gold_text = ""
@@ -71,4 +73,3 @@ def evaluate_retrieval(
         "recall_at_k": recall_at_k,
         "gold_evidence_text_used": gold_text,
     }
-

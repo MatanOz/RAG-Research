@@ -138,7 +138,8 @@ class Evaluator:
             key = (int(row.get("paper_id", 0)), int(row.get("question_id", 0)))
             by_key[key] = row
             evidence_text = str(row.get("gold_evidence_text", ""))
-            for para_id in row.get("evidence_para_ids", []) or []:
+            para_ids = row.get("gold_evidence_para_ids", []) or row.get("evidence_para_ids", []) or []
+            for para_id in para_ids:
                 para_id_str = str(para_id)
                 if para_id_str and para_id_str not in evidence_lookup:
                     evidence_lookup[para_id_str] = evidence_text
@@ -316,6 +317,7 @@ class Evaluator:
                     "model_answer": model_answer,
                     "qa_score": round(qa_score, 6),
                     "groundedness": round(groundedness, 6),
+                    "retrieval_score": round(retrieval_score, 6),
                     "judge_explanation": judge_explanation,
                     "latency_ms": round(latency_ms, 3),
                     "cost_usd": round(cost_usd, 8),
@@ -372,6 +374,8 @@ class Evaluator:
                 "final_score": round(final_score, 6),
                 "qa_micro_score": round(metrics["qa_micro_score"], 6),
                 "mean_groundedness": round(metrics["mean_groundedness"], 6),
+                "mean_retrieval_score": round(metrics["mean_retrieval_score"], 6),
+                "mean_latency_ms": round(metrics["mean_latency_ms"], 3),
                 "mean_cost_usd": round(metrics["mean_cost_usd"], 8),
                 "hallucination_rate": round(metrics["hallucination_rate"], 6),
             }
@@ -380,4 +384,3 @@ class Evaluator:
             "summary_metrics": summary_metrics,
             "per_question_comparisons": per_question_comparisons,
         }
-

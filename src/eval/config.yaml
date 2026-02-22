@@ -3,8 +3,8 @@ paths:
   output_path: outputs/eval/ui_dashboard_data.json
 
 runs:
-  P0_Baseline: outputs/P0/run_20260221_172718.jsonl
-  P1_Semantic: outputs/P1/run_20260221_172314.jsonl
+  P0_Baseline: outputs/P0/run_20260222_132153.jsonl
+  P1_Semantic: outputs/P1/run_20260222_132447.jsonl
 
 evaluation:
   default_k: 3

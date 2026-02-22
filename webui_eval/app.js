@@ -3,10 +3,10 @@ const state = {
   merged: null,
   pipelineLabels: [],
   weights: {
-    w_qa: 0.4,
-    w_gr: 0.25,
-    w_ret: 0.2,
-    w_eff: 0.15,
+    w_qa: 0.6,
+    w_gr: 0.2,
+    w_ret: 0.1,
+    w_eff: 0.1,
   },
   charts: {
     radar: null,
@@ -112,6 +112,33 @@ function formatUsd(value) {
   });
 }
 
+function normalizeRetrievedChunks(chunks) {
+  if (!Array.isArray(chunks)) {
+    return [];
+  }
+  return chunks
+    .filter((chunk) => chunk && typeof chunk === "object")
+    .map((chunk, idx) => ({
+      rank: toNumber(chunk.rank, idx + 1),
+      chunk_id: String(chunk.chunk_id || ""),
+      score: toNumber(chunk.score, 0),
+      text: String(chunk.text || ""),
+      para_ids: Array.isArray(chunk.para_ids) ? chunk.para_ids.map((x) => String(x)) : [],
+    }));
+}
+
+function normalizePaperId(value) {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+  const n = Number(value);
+  if (!Number.isFinite(n)) {
+    return null;
+  }
+  const pid = Math.trunc(n);
+  return pid > 0 ? pid : null;
+}
+
 function clamp01(value) {
   return Math.max(0, Math.min(1, toNumber(value, 0)));
 }
@@ -125,10 +152,10 @@ function normalizeMinMax(value, min, max) {
 
 function readWeightsFromControls() {
   state.weights = {
-    w_qa: toNumber(el.wQa?.value, 0.4),
-    w_gr: toNumber(el.wGr?.value, 0.25),
-    w_ret: toNumber(el.wRet?.value, 0.2),
-    w_eff: toNumber(el.wEff?.value, 0.15),
+    w_qa: toNumber(el.wQa?.value, 0.6),
+    w_gr: toNumber(el.wGr?.value, 0.2),
+    w_ret: toNumber(el.wRet?.value, 0.1),
+    w_eff: toNumber(el.wEff?.value, 0.1),
   };
 }
 
@@ -199,16 +226,21 @@ function mergePayloads(payloadEntries) {
       if (qid === undefined || qid === null) {
         continue;
       }
-      const key = String(qid);
+      const paperId = normalizePaperId(questionRow.paper_id);
+      const qidNum = toNumber(qid, 0);
+      const legacyKeySuffix = `${String(questionRow.question_text || "").trim()}::${String(questionRow.gold_answer || "").trim()}`;
+      const key = paperId !== null ? `${paperId}::${qidNum}` : `legacy::${qidNum}::${legacyKeySuffix}`;
 
       const current = questionMap.get(key) || {
-        question_id: toNumber(qid),
+        paper_id: paperId,
+        question_id: qidNum,
         question_type: "FREE_TEXT",
         question_text: "",
         gold_answer: "",
         pipelines: {},
       };
 
+      current.paper_id = normalizePaperId(questionRow.paper_id) ?? current.paper_id;
       current.question_type = String(
         pickFirstNonEmpty([current.question_type, questionRow.question_type, "FREE_TEXT"]),
       ).toUpperCase();
@@ -245,6 +277,24 @@ function mergePayloads(payloadEntries) {
               pipelineData.retrieval_score,
               toNumber(existingPipeline.retrieval_score, 0),
             ),
+            gold_evidence_text: String(
+              pickFirstNonEmpty([
+                existingPipeline.gold_evidence_text,
+                pipelineData.gold_evidence_text,
+                "",
+              ]),
+            ),
+            retrieved_context: String(
+              pickFirstNonEmpty([
+                existingPipeline.retrieved_context,
+                pipelineData.retrieved_context,
+                "",
+              ]),
+            ),
+            retrieved_chunks:
+              normalizeRetrievedChunks(existingPipeline.retrieved_chunks).length > 0
+                ? normalizeRetrievedChunks(existingPipeline.retrieved_chunks)
+                : normalizeRetrievedChunks(pipelineData.retrieved_chunks),
           };
         }
       }
@@ -254,7 +304,9 @@ function mergePayloads(payloadEntries) {
   }
 
   merged.per_question_comparisons = [...questionMap.values()].sort(
-    (a, b) => toNumber(a.question_id) - toNumber(b.question_id),
+    (a, b) =>
+      toNumber(a.paper_id, Number.MAX_SAFE_INTEGER) - toNumber(b.paper_id, Number.MAX_SAFE_INTEGER) ||
+      toNumber(a.question_id) - toNumber(b.question_id),
   );
 
   return merged;
@@ -560,6 +612,69 @@ function createMetricPill(label, value, className = "") {
   return pill;
 }
 
+function createEvidencePanel(pdata) {
+  const details = document.createElement("details");
+  details.className = "evidence-details mt-2 rounded-md border border-slate-200 bg-white";
+
+  const summary = document.createElement("summary");
+  summary.className = "cursor-pointer px-3 py-2 text-xs font-semibold text-slate-700";
+  summary.textContent = "Evidence: Gold vs Retrieved Chunks";
+  details.appendChild(summary);
+
+  const body = document.createElement("div");
+  body.className = "space-y-3 border-t border-slate-200 px-3 py-3";
+
+  const goldWrap = document.createElement("div");
+  const goldTitle = document.createElement("p");
+  goldTitle.className = "mb-1 text-xs font-semibold text-amber-700";
+  goldTitle.textContent = "Gold Chunk";
+  const goldText = document.createElement("pre");
+  goldText.className = "evidence-pre rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900";
+  goldText.textContent =
+    pdata.gold_evidence_text ||
+    "No gold evidence text available. This file may have been generated before evidence export was added.";
+  goldWrap.appendChild(goldTitle);
+  goldWrap.appendChild(goldText);
+  body.appendChild(goldWrap);
+
+  const retrievedWrap = document.createElement("div");
+  const retrievedTitle = document.createElement("p");
+  retrievedTitle.className = "mb-1 text-xs font-semibold text-sky-700";
+  retrievedTitle.textContent = "Retrieved Chunks";
+  retrievedWrap.appendChild(retrievedTitle);
+
+  const chunks = normalizeRetrievedChunks(pdata.retrieved_chunks);
+  if (chunks.length) {
+    chunks.forEach((chunk) => {
+      const chunkBox = document.createElement("div");
+      chunkBox.className = "mb-2 rounded-md border border-sky-200 bg-sky-50 p-2";
+
+      const chunkMeta = document.createElement("p");
+      chunkMeta.className = "mb-1 text-xs font-semibold text-sky-800";
+      chunkMeta.textContent = `Rank ${toNumber(chunk.rank, 0)} | score ${formatDecimal(chunk.score, 4)}${chunk.chunk_id ? ` | ${chunk.chunk_id}` : ""}`;
+      chunkBox.appendChild(chunkMeta);
+
+      const chunkText = document.createElement("pre");
+      chunkText.className = "evidence-pre text-xs text-slate-800";
+      chunkText.textContent = chunk.text || "(empty chunk text)";
+      chunkBox.appendChild(chunkText);
+
+      retrievedWrap.appendChild(chunkBox);
+    });
+  } else {
+    const contextText = document.createElement("pre");
+    contextText.className = "evidence-pre rounded-md border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700";
+    contextText.textContent =
+      pdata.retrieved_context ||
+      "No retrieved context available. This file may have been generated before evidence export was added.";
+    retrievedWrap.appendChild(contextText);
+  }
+
+  body.appendChild(retrievedWrap);
+  details.appendChild(body);
+  return details;
+}
+
 function renderQuestionCards(merged, labels) {
   const questions = merged.per_question_comparisons || [];
   el.questionCount.textContent = `${questions.length} question${questions.length === 1 ? "" : "s"}`;
@@ -587,6 +702,11 @@ function renderQuestionCards(merged, labels) {
     const topLine = document.createElement("div");
     topLine.className = "mb-1 flex flex-wrap items-center gap-2";
 
+    const pid = document.createElement("span");
+    pid.className = "rounded-md border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700";
+    const paperId = normalizePaperId(question.paper_id);
+    pid.textContent = paperId !== null ? `P${paperId}` : "Paper ?";
+
     const qid = document.createElement("span");
     qid.className = "rounded-md border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700";
     qid.textContent = `Q${toNumber(question.question_id, 0)}`;
@@ -595,6 +715,7 @@ function renderQuestionCards(merged, labels) {
     type.className = `rounded-full border px-2 py-1 text-xs font-semibold ${typeBadgeClass(question.question_type)}`;
     type.textContent = String(question.question_type || "FREE_TEXT").toUpperCase();
 
+    topLine.appendChild(pid);
     topLine.appendChild(qid);
     topLine.appendChild(type);
 
@@ -703,6 +824,8 @@ function renderQuestionCards(merged, labels) {
         judge.className = "judge-note rounded-md border border-slate-200 bg-white p-2 text-xs text-slate-600";
         judge.textContent = `[AI Judge] ${pdata.judge_explanation || "No explanation provided."}`;
         card.appendChild(judge);
+
+        card.appendChild(createEvidencePanel(pdata));
       }
 
       grid.appendChild(card);
@@ -754,9 +877,33 @@ function rerender() {
   renderQuestionCards(state.merged, state.pipelineLabels);
 
   toggleDashboardVisibility(true);
+  const missingPaperIds = state.merged.per_question_comparisons.filter((row) => normalizePaperId(row.paper_id) === null).length;
+  let missingEvidenceRows = 0;
+  state.merged.per_question_comparisons.forEach((row) => {
+    Object.values(row.pipelines || {}).forEach((pdata) => {
+      if (!pdata || typeof pdata !== "object") {
+        return;
+      }
+      const hasGold = String(pdata.gold_evidence_text || "").trim().length > 0;
+      const hasChunks = normalizeRetrievedChunks(pdata.retrieved_chunks).length > 0;
+      const hasContext = String(pdata.retrieved_context || "").trim().length > 0;
+      if (!hasGold || (!hasChunks && !hasContext)) {
+        missingEvidenceRows += 1;
+      }
+    });
+  });
+
+  const warningParts = [];
+  if (missingPaperIds > 0) {
+    warningParts.push(`${missingPaperIds} legacy rows missing paper_id`);
+  }
+  if (missingEvidenceRows > 0) {
+    warningParts.push(`${missingEvidenceRows} rows missing evidence export fields`);
+  }
+  const warningSuffix = warningParts.length ? ` | Note: ${warningParts.join("; ")}.` : "";
   setLoaderMessage(
-    `Loaded ${state.payloads.length} file(s). Detected pipelines: ${state.pipelineLabels.join(", ")}.`,
-    "success",
+    `Loaded ${state.payloads.length} file(s). Detected pipelines: ${state.pipelineLabels.join(", ")}.${warningSuffix}`,
+    warningParts.length ? "info" : "success",
   );
 }
 

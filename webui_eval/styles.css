@@ -90,3 +90,18 @@ body {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.evidence-details > summary {
+  list-style: none;
+}
+
+.evidence-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.evidence-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}

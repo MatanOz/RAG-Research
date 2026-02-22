@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import random
 import re
+import time
 from typing import Any, Dict
 
 from openai import APIError, APIStatusError, AuthenticationError, OpenAI, RateLimitError
@@ -12,6 +14,10 @@ from src.eval.judges.prompts import get_system_prompt
 
 
 TOKEN_RE = re.compile(r"[a-z0-9]+")
+RATE_LIMIT_RETRY_COUNT = 3
+RATE_LIMIT_BACKOFF_SECONDS = [1.0, 2.0, 4.0]
+RATE_LIMIT_JITTER_MAX_SECONDS = 0.25
+RATE_LIMIT_MAX_WAIT_SECONDS = 2.0
 
 
 def _clamp_01(value: Any) -> float:
@@ -66,6 +72,21 @@ class SemanticJudge:
         self.max_tokens = max_tokens
         self.logger = logger
         self.client = OpenAI(api_key=api_key) if enabled and api_key else None
+        if self.logger is not None:
+            self.logger.info(
+                "judge init | enabled=%s model=%s retries=%s backoff=%s jitter_max=%.2fs max_wait=%.2fs",
+                self.enabled,
+                self.model,
+                RATE_LIMIT_RETRY_COUNT,
+                RATE_LIMIT_BACKOFF_SECONDS,
+                RATE_LIMIT_JITTER_MAX_SECONDS,
+                RATE_LIMIT_MAX_WAIT_SECONDS,
+            )
+
+    def _retry_sleep_seconds(self, attempt_index: int) -> float:
+        base = RATE_LIMIT_BACKOFF_SECONDS[min(attempt_index, len(RATE_LIMIT_BACKOFF_SECONDS) - 1)]
+        jitter = random.uniform(0.0, RATE_LIMIT_JITTER_MAX_SECONDS)
+        return min(RATE_LIMIT_MAX_WAIT_SECONDS, base + jitter)
 
     def _fallback(self, question_type: str, gold_answer: str, model_answer: str, retrieved_context: str, reason: str) -> Dict[str, Any]:
         semantic = _token_f1(gold_answer, model_answer)
@@ -98,27 +119,69 @@ class SemanticJudge:
             "retrieved_context": retrieved_context,
         }
 
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
-                ],
-            )
-        except AuthenticationError as exc:
-            return self._fallback(question_type, gold_answer, model_answer, retrieved_context, f"auth_error:{exc}")
-        except RateLimitError as exc:
-            return self._fallback(question_type, gold_answer, model_answer, retrieved_context, f"rate_limit:{exc}")
-        except APIStatusError as exc:
-            return self._fallback(question_type, gold_answer, model_answer, retrieved_context, f"api_status:{exc.status_code}")
-        except APIError as exc:
-            return self._fallback(question_type, gold_answer, model_answer, retrieved_context, f"api_error:{exc}")
-        except Exception as exc:
-            return self._fallback(question_type, gold_answer, model_answer, retrieved_context, f"judge_error:{exc}")
+        response = None
+        for attempt in range(RATE_LIMIT_RETRY_COUNT + 1):
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
+                    ],
+                )
+                if attempt > 0:
+                    self.logger.info(
+                        "Judge recovered after rate-limit retries | qtype=%s attempts=%s",
+                        question_type,
+                        attempt + 1,
+                    )
+                break
+            except AuthenticationError as exc:
+                return self._fallback(question_type, gold_answer, model_answer, retrieved_context, f"auth_error:{exc}")
+            except RateLimitError as exc:
+                if attempt >= RATE_LIMIT_RETRY_COUNT:
+                    return self._fallback(question_type, gold_answer, model_answer, retrieved_context, f"rate_limit:{exc}")
+                wait_seconds = self._retry_sleep_seconds(attempt)
+                self.logger.warning(
+                    "Judge rate-limited for %s. retry=%s/%s wait=%.2fs",
+                    question_type,
+                    attempt + 1,
+                    RATE_LIMIT_RETRY_COUNT,
+                    wait_seconds,
+                )
+                time.sleep(wait_seconds)
+                continue
+            except APIStatusError as exc:
+                if int(getattr(exc, "status_code", 0) or 0) == 429:
+                    if attempt >= RATE_LIMIT_RETRY_COUNT:
+                        return self._fallback(
+                            question_type,
+                            gold_answer,
+                            model_answer,
+                            retrieved_context,
+                            f"api_status:429:{exc}",
+                        )
+                    wait_seconds = self._retry_sleep_seconds(attempt)
+                    self.logger.warning(
+                        "Judge got API 429 for %s. retry=%s/%s wait=%.2fs",
+                        question_type,
+                        attempt + 1,
+                        RATE_LIMIT_RETRY_COUNT,
+                        wait_seconds,
+                    )
+                    time.sleep(wait_seconds)
+                    continue
+                return self._fallback(question_type, gold_answer, model_answer, retrieved_context, f"api_status:{exc.status_code}")
+            except APIError as exc:
+                return self._fallback(question_type, gold_answer, model_answer, retrieved_context, f"api_error:{exc}")
+            except Exception as exc:
+                return self._fallback(question_type, gold_answer, model_answer, retrieved_context, f"judge_error:{exc}")
+
+        if response is None:
+            return self._fallback(question_type, gold_answer, model_answer, retrieved_context, "judge_retry_exhausted")
 
         content = response.choices[0].message.content if response.choices else ""
         try:
@@ -134,4 +197,3 @@ class SemanticJudge:
             "groundedness": groundedness,
             "explanation": explanation,
         }
-

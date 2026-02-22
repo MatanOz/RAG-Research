@@ -89,6 +89,8 @@ Before running, edit `src/eval/config.yaml`:
 - `paths.output_path`: base output location for evaluator exports
 - `runs`: pipeline label to JSONL path mapping (P0/P1/etc.)
 - `judge.enabled`: set `true` to use GPT judge, `false` for deterministic fallback only
+- `evaluation.no_gold_policy`: penalizes hallucinated concrete answers when gold is empty/unmeasured and rewards explicit abstention
+- `evaluation.gold_present_policy`: penalizes abstention when gold has concrete facts and applies partial-coverage caps for FREE_TEXT numeric facts
 
 Evaluator output file naming:
 

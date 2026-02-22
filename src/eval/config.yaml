@@ -3,13 +3,65 @@ paths:
   output_path: outputs/eval/ui_dashboard_data.json
 
 runs:
-  P0_Baseline: outputs/P0/run_20260222_132153.jsonl
-  P1_Semantic: outputs/P1/run_20260222_132447.jsonl
+  P1_Semantic_wait: outputs/P1/run_20260221_170820.jsonl
+
+
 
 evaluation:
   default_k: 3
   numeric_tolerance: 0.05
   hallucination_threshold: 0.5
+  no_gold_policy:
+    enabled: true
+    empty_answer_markers:
+      - ""
+      - none
+      - null
+      - n/a
+      - na
+      - unknown
+      - not available
+      - not reported
+      - unmeasured
+      - not measured
+    status_markers:
+      - unmeasured
+      - not reported
+      - missing
+      - unknown
+      - n/a
+      - na
+    abstention_markers:
+      - cannot determine
+      - can't determine
+      - cannot be determined
+      - insufficient context
+      - insufficient information
+      - not provided
+      - not reported
+      - unknown
+      - not available
+      - n/a
+      - not mentioned
+      - does not mention
+      - does not include
+      - does not specify
+      - not specified
+      - not in the context
+      - not enough information
+    abstention_qa_score: 1.0
+    non_abstention_qa_score: 0.0
+    non_abstention_groundedness_cap: 0.2
+    force_hallucination_on_non_abstention: true
+    exclude_retrieval_from_aggregate: true
+  gold_present_policy:
+    enabled: true
+    abstention_qa_cap: 0.0
+    abstention_semantic_cap: 0.0
+    abstention_groundedness_cap: 0.2
+    force_hallucination_on_abstention: true
+    enforce_numeric_coverage_for_free_text: true
+    min_gold_numeric_facts: 2
   qa_lambda:
     NUMERIC: 0.2
     LIST: 0.2
@@ -17,10 +69,10 @@ evaluation:
     CATEGORICAL: 0.0
     FREE_TEXT: 0.0
   final_weights:
-    w_qa: 0.4
-    w_gr: 0.25
-    w_ret: 0.2
-    w_eff: 0.15
+    w_qa: 0.6
+    w_gr: 0.2
+    w_ret: 0.1
+    w_eff: 0.1
 
 pricing:
   embedding:
@@ -36,10 +88,11 @@ pricing:
 
 judge:
   enabled: true
-  model: gpt-4o-mini
+  model: gpt-4o
   temperature: 0.0
   max_tokens: 350
 
 logging:
   level: INFO
-
+  progress_every_questions: 10
+  log_question_details: true

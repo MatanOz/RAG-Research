@@ -105,7 +105,7 @@ python -m src.eval.run_eval --config src/eval/config.yaml --output outputs/eval/
 python -m src.eval.run_eval --config src/eval/config.yaml --output outputs/eval
 ```
 
-## Web UI
+## Web UIs
 
 Serve the repo root:
 
@@ -115,9 +115,24 @@ python3 -m http.server 8000
 
 Open:
 
-- `http://localhost:8000/webui/`
+- Chunking UI (P0/P1 run explorer): `http://localhost:8000/chunkingUI/`
+- Evaluation Dashboard: `http://localhost:8000/webui_eval/`
 
-WebUI usage details are in `webui/README.md`.
+Chunking UI usage details are in `chunkingUI/README.md`.
+
+## Quick Command Flow
+
+```bash
+# 1) run pipelines (example)
+python3 runner.py --pipeline P0
+python3 runner.py --pipeline P1
+
+# 2) run evaluator
+python -m src.eval.run_eval --config src/eval/config.yaml
+
+# 3) launch UIs
+python3 -m http.server 8000
+```
 
 ## Notes
 

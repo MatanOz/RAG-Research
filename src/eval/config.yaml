@@ -11,8 +11,8 @@ evaluation:
   numeric_tolerance: 0.05
   hallucination_threshold: 0.5
   qa_lambda:
-    NUMERIC: 0.5
-    LIST: 0.5
+    NUMERIC: 0.2
+    LIST: 0.2
     STRING: 0.0
     CATEGORICAL: 0.0
     FREE_TEXT: 0.0
@@ -36,7 +36,7 @@ pricing:
 
 judge:
   enabled: true
-  model: gpt-4o
+  model: gpt-4o-mini
   temperature: 0.0
   max_tokens: 350
 

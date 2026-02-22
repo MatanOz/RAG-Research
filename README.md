@@ -75,6 +75,36 @@ Runs are written as JSONL to:
 - `outputs/P0/` for Pipeline 0
 - `outputs/P1/` for Pipeline 1
 
+## Evaluation Module
+
+Run offline evaluation on existing run JSONL files:
+
+```bash
+python -m src.eval.run_eval --config src/eval/config.yaml
+```
+
+Before running, edit `src/eval/config.yaml`:
+
+- `paths.gold_path`: gold dataset path
+- `paths.output_path`: base output location for evaluator exports
+- `runs`: pipeline label to JSONL path mapping (P0/P1/etc.)
+- `judge.enabled`: set `true` to use GPT judge, `false` for deterministic fallback only
+
+Evaluator output file naming:
+
+- By default, evaluator exports are auto-named with UTC timestamp + pipeline labels, for example:
+  - `outputs/eval/ui_dashboard_data_20260222_122854_P0_Baseline_P1_Semantic.json`
+
+Optional output override:
+
+```bash
+# exact output file
+python -m src.eval.run_eval --config src/eval/config.yaml --output outputs/eval/my_eval.json
+
+# output directory (auto-named file created inside)
+python -m src.eval.run_eval --config src/eval/config.yaml --output outputs/eval
+```
+
 ## Web UI
 
 Serve the repo root:

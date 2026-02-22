@@ -1,0 +1,45 @@
+paths:
+  gold_path: specs/gold_master_v4_text_plus_ids.json
+  output_path: outputs/eval/ui_dashboard_data.json
+
+runs:
+  P0_Baseline: outputs/P0/run_20260221_172718.jsonl
+  P1_Semantic: outputs/P1/run_20260221_172314.jsonl
+
+evaluation:
+  default_k: 3
+  numeric_tolerance: 0.05
+  hallucination_threshold: 0.5
+  qa_lambda:
+    NUMERIC: 0.5
+    LIST: 0.5
+    STRING: 0.0
+    CATEGORICAL: 0.0
+    FREE_TEXT: 0.0
+  final_weights:
+    w_qa: 0.4
+    w_gr: 0.25
+    w_ret: 0.2
+    w_eff: 0.15
+
+pricing:
+  embedding:
+    text-embedding-3-small: 0.02
+    text-embedding-3-large: 0.13
+  llm:
+    gpt-4o-mini:
+      input_per_million: 0.15
+      output_per_million: 0.6
+    gpt-4o:
+      input_per_million: 2.5
+      output_per_million: 10.0
+
+judge:
+  enabled: true
+  model: gpt-4o
+  temperature: 0.0
+  max_tokens: 350
+
+logging:
+  level: INFO
+

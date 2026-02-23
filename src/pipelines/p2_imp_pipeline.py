@@ -1,4 +1,4 @@
-"""P2 implementation using hybrid retrieval (dense + sparse), RRF, and metadata-aware ranking."""
+"""P2_Imp implementation using adaptive hybrid retrieval with weighted RRF."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from src.state import AgentState
 RRF_K = 60.0
 
 
-class P2_Pipeline(BaseGraphPipeline):
+class P2_Imp_Pipeline(BaseGraphPipeline):
     def __init__(self, pipeline_version: str, config: Any, openai_client: Any, logger: Any, run_id: str):
         self.boost_map_path = Path("specs/metadata_boost_map.json")
         self.boost_map = self._load_boost_map(self.boost_map_path)
@@ -145,16 +145,18 @@ class P2_Pipeline(BaseGraphPipeline):
 
         top_k = int(self.config.retrieval_params.top_k)
         n_results = max(top_k * 2, top_k)
+        question_id = str(state.get("question_id", ""))
+        boost_rules = self.boost_map.get(question_id, {})
+        use_bm25 = len(boost_rules) > 0
+        alpha = 0.75
 
         vectors, embedding_tokens = self.embed_texts(
             self.config.retrieval_params.embedding_model,
             [state["question"]],
         )
         query_embedding = vectors[0]
-        paper_id = int(state.get("paper_id", 0))
 
         dense_candidates = self._dense_candidates(query_embedding=query_embedding, n_results=n_results)
-        sparse_candidates = self._sparse_candidates(query=state["question"], n_results=n_results, paper_id=paper_id)
 
         fused: Dict[str, Dict[str, Any]] = {}
         for rank, candidate in enumerate(dense_candidates, start=1):
@@ -170,29 +172,30 @@ class P2_Pipeline(BaseGraphPipeline):
                     "base_rrf_score": 0.0,
                 },
             )
-            entry["base_rrf_score"] += 1.0 / (RRF_K + rank)
+            weight = alpha if use_bm25 else 1.0
+            entry["base_rrf_score"] += weight * (1.0 / (RRF_K + rank))
 
-        for rank, candidate in enumerate(sparse_candidates, start=1):
-            chunk_id = str(candidate.get("chunk_id", ""))
-            if not chunk_id:
-                continue
-            entry = fused.setdefault(
-                chunk_id,
-                {
-                    "chunk_id": chunk_id,
-                    "text": str(candidate.get("text", "")),
-                    "metadata": candidate.get("metadata", {}) or {},
-                    "base_rrf_score": 0.0,
-                },
-            )
-            if not entry.get("text"):
-                entry["text"] = str(candidate.get("text", ""))
-            if not entry.get("metadata"):
-                entry["metadata"] = candidate.get("metadata", {}) or {}
-            entry["base_rrf_score"] += 1.0 / (RRF_K + rank)
-
-        question_id = str(state.get("question_id", ""))
-        boost_rules = self.boost_map.get(question_id, {})
+        if use_bm25:
+            paper_id = int(state.get("paper_id", 0))
+            sparse_candidates = self._sparse_candidates(query=state["question"], n_results=n_results, paper_id=paper_id)
+            for rank, candidate in enumerate(sparse_candidates, start=1):
+                chunk_id = str(candidate.get("chunk_id", ""))
+                if not chunk_id:
+                    continue
+                entry = fused.setdefault(
+                    chunk_id,
+                    {
+                        "chunk_id": chunk_id,
+                        "text": str(candidate.get("text", "")),
+                        "metadata": candidate.get("metadata", {}) or {},
+                        "base_rrf_score": 0.0,
+                    },
+                )
+                if not entry.get("text"):
+                    entry["text"] = str(candidate.get("text", ""))
+                if not entry.get("metadata"):
+                    entry["metadata"] = candidate.get("metadata", {}) or {}
+                entry["base_rrf_score"] += (1.0 - alpha) * (1.0 / (RRF_K + rank))
 
         ranked_chunks: List[Dict[str, Any]] = []
         for chunk in fused.values():

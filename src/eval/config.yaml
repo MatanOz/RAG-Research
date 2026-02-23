@@ -3,11 +3,11 @@ paths:
   output_path: outputs/eval/ui_dashboard_data.json
 
 runs:
-  P0_Baseline_emb_small: outputs/P0/run_20260222_223203.jsonl
-  P1_Semantic_emb_large: outputs/P1/run_20260222_223459.jsonl
-
-
-
+  #P0_Baseline_emb_small: outputs/P0/run_20260222_223203.jsonl
+  #P1_Semantic_emb_large: outputs/P1/run_20260222_223459.jsonl
+  #p2_hybrid: outputs/P2/run_20260223_150046.jsonl
+  #p2_hybrid_160237: outputs/P2/run_20260223_160237.jsonl
+  p2_imp_hybrid: outputs/P2_imp/run_20260223_163351.jsonl
 evaluation:
   default_k: 3
   numeric_tolerance: 0.05
@@ -89,7 +89,7 @@ pricing:
 
 judge:
   enabled: true
-  model: gpt-4o
+  model: gpt-4o-mini
   temperature: 0.0
   max_tokens: 350
 

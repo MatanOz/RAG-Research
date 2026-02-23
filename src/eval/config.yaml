@@ -3,7 +3,8 @@ paths:
   output_path: outputs/eval/ui_dashboard_data.json
 
 runs:
-  P1_Semantic_wait: outputs/P1/run_20260221_170820.jsonl
+  P0_Baseline_emb_small: outputs/P0/run_20260222_223203.jsonl
+  P1_Semantic_emb_large: outputs/P1/run_20260222_223459.jsonl
 
 
 
@@ -95,4 +96,4 @@ judge:
 logging:
   level: INFO
   progress_every_questions: 10
-  log_question_details: true
+  log_question_details: false

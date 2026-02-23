@@ -2,7 +2,7 @@ project_name: chemical_rag_research
 pipeline_version: P1
 
 retrieval_params:
-  embedding_model: text-embedding-3-small
+  embedding_model: text-embedding-3-large
   chunking_method: semantic_markdown
   chunk_size: 1000
   chunk_overlap: 150
@@ -12,7 +12,7 @@ retrieval_params:
 llm_params:
   model_name: gpt-4o-mini
   temperature: 0.0
-  max_tokens: 128
+  max_tokens: 256
 
 paths:
   data_dir: data
@@ -20,7 +20,7 @@ paths:
   output_dir: outputs/P1
 
 run_control:
-  paper_ids: [5,6]
+  paper_ids: [3,4]
   max_papers: null
   question_ids: null
   max_questions_per_paper: null

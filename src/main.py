@@ -13,8 +13,7 @@ import chromadb
 from openai import OpenAI
 
 from src.config import DEFAULT_CONFIG_PATH, OPENAI_API_KEY, RunnerConfig, load_config
-from src.pipelines.p0_pipeline import P0_Pipeline
-from src.pipelines.p1_pipeline import P1_Pipeline
+from src.pipelines import PIPELINE_REGISTRY
 from src.utils.document_manager import (
     get_or_build_chroma_collection,
     initialize_document_manager,
@@ -22,12 +21,6 @@ from src.utils.document_manager import (
 )
 
 DEFAULT_GOLD_PATH = Path("specs/gold_master_v4_text_plus_ids.json")
-PIPELINE_REGISTRY = {
-    "P0": P0_Pipeline,
-    "P1": P1_Pipeline,
-}
-
-
 def setup_logging(level: str) -> logging.Logger:
     logger = logging.getLogger("p0_runner")
     logger.handlers.clear()
@@ -178,7 +171,7 @@ def run_pipeline(config_path: Path = DEFAULT_CONFIG_PATH, gold_path: Path = DEFA
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run graph-based P0 baseline")
+    parser = argparse.ArgumentParser(description="Run graph-based pipeline (P0/P1/P2)")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
     parser.add_argument("--gold", type=Path, default=DEFAULT_GOLD_PATH)
     return parser.parse_args()

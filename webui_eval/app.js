@@ -284,6 +284,15 @@ function mergePayloads(payloadEntries) {
               "",
             ]),
           );
+          const generationCritiqueLogic = String(
+            pickFirstNonEmpty([
+              existingGeneration.critique_logic,
+              existingPipeline.critique_logic,
+              incomingGeneration.critique_logic,
+              pipelineData.critique_logic,
+              "",
+            ]),
+          );
           const generationEvidenceQuotes = (() => {
             const existingQuotes = normalizeEvidenceQuotes(existingGeneration.evidence_quotes).length
               ? normalizeEvidenceQuotes(existingGeneration.evidence_quotes)
@@ -302,10 +311,12 @@ function mergePayloads(payloadEntries) {
               pickFirstNonEmpty([existingPipeline.model_answer, pipelineData.model_answer, ""]),
             ),
             reasoning: generationReasoning,
+            critique_logic: generationCritiqueLogic,
             evidence_quotes: generationEvidenceQuotes,
             generation: {
               reasoning: generationReasoning,
               evidence_quotes: generationEvidenceQuotes,
+              critique_logic: generationCritiqueLogic,
             },
             qa_score: toNumber(pipelineData.qa_score, toNumber(existingPipeline.qa_score, 0)),
             groundedness: toNumber(
@@ -905,6 +916,26 @@ function renderQuestionCards(merged, labels) {
           }
 
           card.appendChild(explainer);
+        }
+
+        const critiqueLogic = String(
+          pdata?.generation?.critique_logic ?? pdata?.critique_logic ?? "",
+        ).trim();
+        if (critiqueLogic) {
+          const critiqueBox = document.createElement("div");
+          critiqueBox.className = "mt-2 rounded-md border border-rose-200 bg-rose-50 p-2 text-xs text-rose-900";
+
+          const critiqueTitle = document.createElement("p");
+          critiqueTitle.className = "mb-1 text-xs font-semibold text-rose-800";
+          critiqueTitle.textContent = "Agent Critique";
+          critiqueBox.appendChild(critiqueTitle);
+
+          const critiqueText = document.createElement("p");
+          critiqueText.className = "whitespace-pre-wrap text-xs text-rose-900";
+          critiqueText.textContent = critiqueLogic;
+          critiqueBox.appendChild(critiqueText);
+
+          card.appendChild(critiqueBox);
         }
 
         card.appendChild(createEvidencePanel(pdata));

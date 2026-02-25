@@ -491,6 +491,11 @@ class Evaluator:
                 if reasoning == "":
                     reasoning = None
 
+                raw_critique_logic = generation_payload.get("critique_logic")
+                critique_logic = str(raw_critique_logic).strip() if raw_critique_logic is not None else None
+                if critique_logic == "":
+                    critique_logic = None
+
                 raw_evidence_quotes = generation_payload.get("evidence_quotes", [])
                 if isinstance(raw_evidence_quotes, list):
                     evidence_quotes = [str(item).strip() for item in raw_evidence_quotes if str(item).strip()]
@@ -535,7 +540,11 @@ class Evaluator:
                 qa_score = qa_score_pre_guard
 
                 is_no_gold_case = self._is_no_gold_case(gold_item, gold_answer, no_gold_policy)
-                is_abstained = self._is_abstention_answer(model_answer, no_gold_policy)
+                is_abstained_field = generation_payload.get("is_abstained")
+                if isinstance(is_abstained_field, bool):
+                    is_abstained = is_abstained_field
+                else:
+                    is_abstained = self._is_abstention_answer(model_answer, no_gold_policy)
                 forced_hallucination = False
                 abstention_penalized_with_gold = False
                 numeric_coverage = {"gold_count": 0.0, "matched_count": 0.0, "coverage": 1.0}
@@ -619,9 +628,11 @@ class Evaluator:
                     "model_answer": model_answer,
                     "reasoning": reasoning,
                     "evidence_quotes": evidence_quotes,
+                    "critique_logic": critique_logic,
                     "generation": {
                         "reasoning": reasoning,
                         "evidence_quotes": evidence_quotes,
+                        "critique_logic": critique_logic,
                     },
                     "qa_score": round(qa_score, 6),
                     "groundedness": round(groundedness, 6),

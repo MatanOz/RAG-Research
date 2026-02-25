@@ -54,6 +54,8 @@ class GenerationSection(BaseModel):
     model_answer: str
     reasoning: Optional[str] = None
     evidence_quotes: Optional[List[str]] = None
+    is_abstained: bool = False
+    critique_logic: Optional[str] = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -285,6 +287,12 @@ class BaseGraphPipeline(ABC):
             single_quote = str(raw_evidence_quotes).strip()
             evidence_quotes = [single_quote] if single_quote else None
 
+        raw_critique_logic = final_state.get("critique_logic")
+        critique_logic = str(raw_critique_logic).strip() if raw_critique_logic is not None else None
+        if critique_logic == "":
+            critique_logic = None
+        is_abstained = bool(final_state.get("is_abstained", False))
+
         payload = {
             "run_id": self.run_id,
             "pipeline_name": self.pipeline_name,
@@ -316,6 +324,8 @@ class BaseGraphPipeline(ABC):
                 "model_answer": str(final_state.get("model_answer", "")),
                 "reasoning": reasoning,
                 "evidence_quotes": evidence_quotes,
+                "is_abstained": is_abstained,
+                "critique_logic": critique_logic,
             },
             "logs": {
                 "latency_ms": round(latency_ms, 3),

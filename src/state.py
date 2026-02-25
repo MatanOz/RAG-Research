@@ -12,8 +12,11 @@ class AgentState(TypedDict):
     question_type: NotRequired[str]
     retrieved_chunks: List[Dict[str, object]]
     model_answer: str
+    draft_answer: NotRequired[str]
     reasoning: NotRequired[str]
     evidence_quotes: NotRequired[List[str]]
+    critique_logic: NotRequired[str]
+    is_abstained: NotRequired[bool]
     embedding_tokens: int
     llm_input_tokens: int
     llm_output_tokens: int

@@ -13,6 +13,7 @@ PIPELINE_CONFIGS = {
     "P2": Path("configs/p2_hybrid.yaml"),
     "P2_IMP": Path("configs/p2_imp_hybrid.yaml"),
     "P3": Path("configs/p3_adaptive_structured.yaml"),
+    "P4": Path("configs/p4_agentic_corrector.yaml"),
 }
 
 
@@ -22,7 +23,7 @@ def parse_args() -> argparse.Namespace:
         "--pipeline",
         type=str,
         default="P0",
-        help="Pipeline version to run (P0, P1, P2, P2_IMP, or P3). Ignored when --config is provided.",
+        help="Pipeline version to run (P0, P1, P2, P2_IMP, P3, or P4). Ignored when --config is provided.",
     )
     parser.add_argument("--config", type=Path, default=None, help="Optional explicit config path.")
     parser.add_argument("--gold", type=Path, default=DEFAULT_GOLD_PATH, help="Gold JSON path.")

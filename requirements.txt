@@ -8,3 +8,6 @@ pydantic
 scikit-learn
 langgraph
 langchain-text-splitters
+pint
+tiktoken
+rank-bm25

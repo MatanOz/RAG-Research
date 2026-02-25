@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
+import json
 from pathlib import Path
 from time import perf_counter
 from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple
 
 from langgraph.graph.state import CompiledStateGraph
-from openai import APIError, APIStatusError, AuthenticationError, OpenAI, RateLimitError
+from openai import APIError, APIStatusError, AuthenticationError, OpenAI, PermissionDeniedError, RateLimitError
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.state import AgentState
@@ -133,8 +134,14 @@ class BaseGraphPipeline(ABC):
             raise RuntimeError("OpenAI authentication error while creating embeddings. Check OPENAI_API_KEY.") from exc
         except RateLimitError as exc:
             raise RuntimeError("OpenAI quota/rate-limit error while creating embeddings.") from exc
+        except PermissionDeniedError as exc:
+            raise RuntimeError(
+                f"OpenAI permission error while creating embeddings: {self._format_api_status_error(exc)}"
+            ) from exc
         except APIStatusError as exc:
-            raise RuntimeError(f"OpenAI status error while creating embeddings: {exc.status_code}") from exc
+            raise RuntimeError(
+                f"OpenAI status error while creating embeddings: {self._format_api_status_error(exc)}"
+            ) from exc
         except APIError as exc:
             raise RuntimeError(f"OpenAI API error while creating embeddings: {exc}") from exc
 
@@ -169,8 +176,14 @@ class BaseGraphPipeline(ABC):
             raise RuntimeError("OpenAI authentication error while generating answer. Check OPENAI_API_KEY.") from exc
         except RateLimitError as exc:
             raise RuntimeError("OpenAI quota/rate-limit error while generating answer.") from exc
+        except PermissionDeniedError as exc:
+            raise RuntimeError(
+                f"OpenAI permission error while generating answer: {self._format_api_status_error(exc)}"
+            ) from exc
         except APIStatusError as exc:
-            raise RuntimeError(f"OpenAI status error while generating answer: {exc.status_code}") from exc
+            raise RuntimeError(
+                f"OpenAI status error while generating answer: {self._format_api_status_error(exc)}"
+            ) from exc
         except APIError as exc:
             raise RuntimeError(f"OpenAI API error while generating answer: {exc}") from exc
 
@@ -197,6 +210,22 @@ class BaseGraphPipeline(ABC):
             return int(value)
         except (TypeError, ValueError):
             return 0
+
+    @staticmethod
+    def _format_api_status_error(exc: APIStatusError) -> str:
+        status = int(getattr(exc, "status_code", 0) or 0)
+        base_message = str(exc) or exc.__class__.__name__
+        body = getattr(exc, "body", None)
+        if isinstance(body, (dict, list)):
+            try:
+                body_text = json.dumps(body, ensure_ascii=False)
+            except (TypeError, ValueError):
+                body_text = str(body)
+        else:
+            body_text = str(body) if body else ""
+        if body_text:
+            return f"status={status}; message={base_message}; body={body_text}"
+        return f"status={status}; message={base_message}"
 
     @staticmethod
     def _chunk_para_ids(chunk: Dict[str, Any]) -> List[str]:

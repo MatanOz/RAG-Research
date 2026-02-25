@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RAG Architecture Evaluation Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <header class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">RAG Architecture Evaluation Dashboard</h1>
+        <p class="mt-2 text-sm text-slate-600">Standalone client-side viewer for merged evaluator JSON outputs.</p>
+      </header>
+
+      <section class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 class="text-lg font-semibold">Data Loader</h2>
+          <div class="flex items-center gap-2">
+            <button id="clearBtn" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" type="button">
+              Clear Data
+            </button>
+          </div>
+        </div>
+
+        <input id="fileInput" class="hidden" type="file" accept="application/json,.json" multiple />
+
+        <div id="dropzone" class="dropzone rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center transition">
+          <p class="text-base font-medium text-slate-800">Drag & drop evaluator JSON files here</p>
+          <p class="mt-1 text-sm text-slate-500">or click to browse files</p>
+          <p class="mt-3 text-xs text-slate-500">Supports multiple files. Data is merged by pipeline and question_id.</p>
+        </div>
+
+        <div class="mt-4">
+          <p class="mb-2 text-sm font-medium text-slate-700">Detected Pipelines</p>
+          <div id="pipelineBadges" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <div id="loaderMessage" class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+          Please upload `ui_dashboard_data*.json` files to begin.
+        </div>
+      </section>
+
+      <section class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 class="text-lg font-semibold">Weights Configuration</h2>
+          <p id="weightsSumLabel" class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+            Sum: 1.00
+          </p>
+        </div>
+        <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <label class="weight-item">
+            <span class="weight-label">QA Quality (w_qa)</span>
+            <div class="weight-control">
+              <input id="wQa" type="range" min="0" max="1" step="0.05" value="0.60" />
+              <span id="wQaValue" class="weight-value">0.60</span>
+            </div>
+          </label>
+          <label class="weight-item">
+            <span class="weight-label">Groundedness (w_gr)</span>
+            <div class="weight-control">
+              <input id="wGr" type="range" min="0" max="1" step="0.05" value="0.20" />
+              <span id="wGrValue" class="weight-value">0.20</span>
+            </div>
+          </label>
+          <label class="weight-item">
+            <span class="weight-label">Retrieval (w_ret)</span>
+            <div class="weight-control">
+              <input id="wRet" type="range" min="0" max="1" step="0.05" value="0.10" />
+              <span id="wRetValue" class="weight-value">0.10</span>
+            </div>
+          </label>
+          <label class="weight-item">
+            <span class="weight-label">Efficiency (w_eff)</span>
+            <div class="weight-control">
+              <input id="wEff" type="range" min="0" max="1" step="0.05" value="0.10" />
+              <span id="wEffValue" class="weight-value">0.10</span>
+            </div>
+          </label>
+        </div>
+        <p id="weightsWarning" class="mt-3 hidden rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Weights must sum to exactly 1.00 for a valid weighted final score.
+        </p>
+      </section>
+
+      <section id="emptyState" class="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+        <h3 class="text-lg font-semibold text-slate-800">No data loaded</h3>
+        <p class="mt-2 text-sm text-slate-600">Upload one or more evaluator output JSON files to render charts and question comparisons.</p>
+      </section>
+
+      <section id="dashboardContent" class="hidden space-y-6">
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 class="mb-4 text-lg font-semibold">Macro View: Summary Metrics</h2>
+          <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <h3 class="mb-2 text-sm font-semibold text-slate-700">Radar Comparison</h3>
+              <div class="h-80">
+                <canvas id="radarChart"></canvas>
+              </div>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <h3 class="mb-2 text-sm font-semibold text-slate-700">Final Score by Pipeline</h3>
+              <div class="h-80">
+                <canvas id="barChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-5 overflow-x-auto rounded-xl border border-slate-200">
+            <table class="min-w-full text-sm">
+              <thead class="bg-slate-100 text-slate-700">
+                <tr>
+                  <th class="px-3 py-2 text-left font-semibold">Pipeline</th>
+                  <th class="px-3 py-2 text-right font-semibold">Final Score</th>
+                  <th class="px-3 py-2 text-right font-semibold">QA Score</th>
+                  <th class="px-3 py-2 text-right font-semibold">Groundedness</th>
+                  <th class="px-3 py-2 text-right font-semibold">Retrieval</th>
+                  <th class="px-3 py-2 text-right font-semibold">Hallucination Rate</th>
+                  <th class="px-3 py-2 text-right font-semibold">Latency (ms)</th>
+                  <th class="px-3 py-2 text-right font-semibold">Cost (USD)</th>
+                </tr>
+              </thead>
+              <tbody id="summaryTableBody" class="divide-y divide-slate-200 bg-white"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-lg font-semibold">Micro View: Per-Question Deep Dive</h2>
+            <p id="questionCount" class="text-sm text-slate-600">0 questions</p>
+          </div>
+          <div id="questionList" class="space-y-3"></div>
+        </section>
+      </section>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="./app.js?v=20260222_eval_dashboard_6"></script>
+  </body>
+</html>

@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RAG Run Explorer</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Experiment Dashboard</p>
+        <h1>RAG Run Explorer</h1>
+      </div>
+      <div class="run-meta" id="runMeta">No run loaded</div>
+    </header>
+
+    <main class="layout">
+      <section class="panel control-panel">
+        <h2>Load Data</h2>
+
+        <div class="field-group">
+          <label for="fileInput">Load JSONL file</label>
+          <input id="fileInput" type="file" accept=".jsonl,.txt" />
+        </div>
+
+        <div class="field-group">
+          <label for="runPathInput">Or fetch run path (when served from repo root)</label>
+          <div class="inline">
+            <input id="runPathInput" type="text" value="/outputs/P0/" />
+            <button id="loadPathBtn">Load Path</button>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label for="latestPipelineSelect">Load latest pipeline output</label>
+          <div class="inline">
+            <select id="latestPipelineSelect">
+              <option value="P0" selected>P0</option>
+              <option value="P1">P1</option>
+            </select>
+            <button id="loadLatestBtn" class="ghost">Load Latest</button>
+          </div>
+          <p class="status latest-source" id="latestSourceMeta">Selected latest source: outputs/P0</p>
+        </div>
+
+        <h2>Filters</h2>
+
+        <div class="field-grid">
+          <div class="field-group">
+            <label for="paperFilter">Paper</label>
+            <select id="paperFilter">
+              <option value="all">All</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="typeFilter">Question Type</label>
+            <select id="typeFilter">
+              <option value="all">All</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="answerableFilter">Answerable</label>
+            <select id="answerableFilter">
+              <option value="all">All</option>
+              <option value="true">True</option>
+              <option value="false">False</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="searchInput">Search</label>
+            <input id="searchInput" type="text" placeholder="question, answer, chunk id..." />
+          </div>
+        </div>
+
+        <p class="status" id="status">Load a run file to begin.</p>
+      </section>
+
+      <section class="panel metrics-panel">
+        <h2>Run Summary</h2>
+        <div class="metric-grid">
+          <article class="metric-card">
+            <p>Records</p>
+            <h3 id="mRecords">-</h3>
+          </article>
+          <article class="metric-card">
+            <p>Papers</p>
+            <h3 id="mPapers">-</h3>
+          </article>
+          <article class="metric-card">
+            <p>Avg Latency (ms)</p>
+            <h3 id="mLatency">-</h3>
+          </article>
+          <article class="metric-card">
+            <p>Total Cost (USD)</p>
+            <h3 id="mCost">-</h3>
+          </article>
+          <article class="metric-card">
+            <p>Per-Question Cost (USD)</p>
+            <h3 id="mPerQuestionCost">-</h3>
+          </article>
+          <article class="metric-card">
+            <p>Paper Build Tokens</p>
+            <h3 id="mPaperBuildTokens">-</h3>
+          </article>
+          <article class="metric-card">
+            <p>Paper Build Cost (USD)</p>
+            <h3 id="mPaperBuildCost">-</h3>
+          </article>
+          <article class="metric-card">
+            <p>Total Run Cost (USD)</p>
+            <h3 id="mRunCost">-</h3>
+          </article>
+          <article class="metric-card">
+            <p>Avg Top-1 Score</p>
+            <h3 id="mTop1">-</h3>
+          </article>
+          <article class="metric-card">
+            <p>Total Tokens</p>
+            <h3 id="mTokens">-</h3>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel table-panel">
+        <div class="panel-head">
+          <h2>Questions</h2>
+          <p id="tableCount">0 rows</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Paper</th>
+                <th>QID</th>
+                <th>Type</th>
+                <th>Question</th>
+                <th>Top-1</th>
+                <th>Latency</th>
+                <th>Cost</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel detail-panel">
+        <h2>Details</h2>
+        <div id="detailContent" class="detail-empty">Select a row to inspect question details.</div>
+      </section>
+    </main>
+
+    <template id="detailTemplate">
+      <div class="detail-block">
+        <h3>Question</h3>
+        <p class="mono" data-field="qid"></p>
+        <p data-field="question"></p>
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-block">
+          <h3>Reference Answer</h3>
+          <pre data-field="reference"></pre>
+        </div>
+        <div class="detail-block">
+          <h3>Model Answer</h3>
+          <pre data-field="answer"></pre>
+        </div>
+      </div>
+
+      <div class="detail-block">
+        <h3>Retrieval Scores</h3>
+        <div class="score-bars" data-field="scores"></div>
+      </div>
+
+      <div class="detail-block">
+        <h3>Top Chunks</h3>
+        <div class="chunk-list" data-field="chunks"></div>
+      </div>
+    </template>
+
+    <script src="./app.js?v=20260221_1" defer></script>
+  </body>
+</html>

@@ -1,11 +1,11 @@
 project_name: chemical_rag_research
-pipeline_version: P0
+pipeline_version: P2
 
 retrieval_params:
-  embedding_model: text-embedding-3-small
-  chunking_method: fixed_char
-  chunk_size: 600
-  chunk_overlap: 50
+  embedding_model: text-embedding-3-large
+  chunking_method: semantic_markdown
+  chunk_size: 1000
+  chunk_overlap: 150
   top_k: 3
   embedding_batch_size: 64
 
@@ -17,13 +17,14 @@ llm_params:
 paths:
   data_dir: data
   chroma_dir: data/derived/chroma
-  output_dir: outputs/P0
+  output_dir: outputs/P2
 
 run_control:
-  paper_ids: null
+  paper_ids: [3]
   max_papers: null
-  question_ids: null
+  question_ids: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25]
   max_questions_per_paper: null
+
 
 logging:
   level: INFO

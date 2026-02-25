@@ -20,7 +20,7 @@ paths:
   output_dir: outputs/P2
 
 run_control:
-  paper_ids: null
+  paper_ids: [8]
   max_papers: null
   question_ids: null
   max_questions_per_paper: null

@@ -36,6 +36,7 @@ python3 runner.py --pipeline P0
 python3 runner.py --pipeline P1
 python3 runner.py --pipeline P2
 python3 runner.py --pipeline P2_IMP
+python3 runner.py --pipeline P3
 ```
 
 Use an explicit config file when needed:
@@ -51,11 +52,12 @@ python3 -m src.main --config configs/p0_baseline.yaml
 python3 -m src.main --config configs/p1_semantic.yaml
 python3 -m src.main --config configs/p2_hybrid.yaml
 python3 -m src.main --config configs/p2_imp_hybrid.yaml
+python3 -m src.main --config configs/p3_adaptive_structured.yaml
 ```
 
 ## Choose Papers and Questions
 
-Edit `run_control` in the selected config (`configs/p0_baseline.yaml`, `configs/p1_semantic.yaml`, `configs/p2_hybrid.yaml`, or `configs/p2_imp_hybrid.yaml`):
+Edit `run_control` in the selected config (`configs/p0_baseline.yaml`, `configs/p1_semantic.yaml`, `configs/p2_hybrid.yaml`, `configs/p2_imp_hybrid.yaml`, or `configs/p3_adaptive_structured.yaml`):
 
 - `paper_ids`: explicit list of paper IDs to run
 - `max_papers`: limit number of papers when `paper_ids` is null
@@ -80,6 +82,7 @@ Runs are written as JSONL to:
 - `outputs/P1/` for Pipeline 1
 - `outputs/P2/` for Pipeline 2
 - `outputs/P2_imp/` for Pipeline 2 Improved
+- `outputs/P3/` for Pipeline 3
 
 ## Evaluation Module
 
@@ -135,6 +138,7 @@ Chunking UI usage details are in `chunkingUI/README.md`.
 python3 runner.py --pipeline P0
 python3 runner.py --pipeline P1
 python3 runner.py --pipeline P2_IMP
+python3 runner.py --pipeline P3
 
 # 2) run evaluator
 python -m src.eval.run_eval --config src/eval/config.yaml
@@ -149,4 +153,5 @@ python3 -m http.server 8000
 - P1 uses `semantic_markdown` chunking.
 - P2 uses hybrid retrieval (dense + BM25 + RRF + metadata boosting).
 - P2_IMP uses adaptive hybrid retrieval (conditional BM25 + weighted RRF + metadata boosting).
+- P3 uses adaptive multi-query retrieval + structured evidence generation (answer/reasoning/quotes).
 - For best compatibility, use Python 3.11.

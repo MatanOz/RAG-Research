@@ -139,7 +139,7 @@ class P3_Pipeline(P2_Imp_Pipeline):
         if self._active_collection is None:
             raise RuntimeError("No active Chroma collection set for retrieval node.")
 
-        top_k = 3
+        top_k = 5
         n_results = max(int(self.config.retrieval_params.top_k) * 2, top_k)
         question = str(state["question"])
         question_id = str(state.get("question_id", ""))
@@ -206,17 +206,19 @@ class P3_Pipeline(P2_Imp_Pipeline):
         retrieved_context = "\n\n".join(str(chunk.get("text", "")) for chunk in state.get("retrieved_chunks", []))
 
         system_prompt = (
-            "You are a chemistry research assistant. "
-            "Answer ONLY based on the provided 3 chunks. "
+            "You are a precise chemistry research assistant. "
+            "Answer ONLY based on the provided retrieved chunks. "
             "Return clean outputs that strictly match the requested schema. "
-            "For NUMERIC types: provide only the value and unit (e.g., '180 °C'). "
-            "For LIST types: provide a comma-separated list. "
-            "Populate 'quotes' with exact sentences from the text."
+            "CRITICAL FORMATTING RULES:\n"
+            "- DO NOT just output isolated numbers or disjointed lists.\n"
+            "- Maintain brief context in your answer (e.g., instead of just '69 mg, 10 mg', write 'PbBr2: 69 mg, MXene: 10 mg').\n"
+            "- For lifetimes or specific properties, include the label (e.g., 'Average lifetime: 4.5 ns').\n"
+            "- Populate 'quotes' with exact, verbatim sentences from the text."
         )
         user_prompt = (
             f"Question Type:\n{question_type}\n\n"
             f"Question:\n{question}\n\n"
-            f"Retrieved Chunks (Top 3):\n{retrieved_context}\n"
+            f"Retrieved Chunks:\n{retrieved_context}\n"
         )
 
         try:

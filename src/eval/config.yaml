@@ -3,13 +3,16 @@ paths:
   output_path: outputs/eval/ui_dashboard_data.json
 
 runs:
-  P0_Baseline_full: outputs/P0/run_20260225_171720_papers10_p01-10_q1-49_nq490.jsonl
-  P1_Semantic_full: outputs/P1/run_20260225_174345_papers10_p01-10_q1-49_nq490.jsonl
-  p2_imp_hybrid_full: outputs/P2_imp/run_20260225_180458_papers10_p01-10_q1-49_nq490.jsonl
-
+  #P0_Baseline_full: outputs/P0/run_20260225_171720_papers10_p01-10_q1-49_nq490.jsonl
+  #P1_Semantic_full: outputs/P1/run_20260225_174345_papers10_p01-10_q1-49_nq490.jsonl
+  #p2_imp_hybrid_8: outputs/P2_imp/run_20260225_204755_papers1_p08-08_q1-49_nq49.jsonl
+  #p3: outputs/P3/run_20260225_195541_papers1_p08-08_q1-49_nq49.jsonl
+  #p3_new: outputs/P3/run_20260225_202948_papers1_p08-08_q1-49_nq49.jsonl
+  #p3_top5: outputs/P3/run_20260225_211044_papers1_p08-08_q1-49_nq49.jsonl
+  p3_top5-art1: outputs/P3/run_20260225_213156_papers1_p01-01_q1-7_nq7.jsonl
 
 evaluation:
-  default_k: 3
+  default_k: 5
   numeric_tolerance: 0.05
   hallucination_threshold: 0.5
   no_gold_policy:
@@ -91,7 +94,7 @@ judge:
   enabled: true
   model: gpt-4o-mini
   temperature: 0.0
-  max_tokens: 350
+  max_tokens: 500
 
 logging:
   level: INFO

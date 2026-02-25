@@ -40,7 +40,7 @@ class RetrievalSection(BaseModel):
     k: int = Field(ge=1)
     retrieved_para_ids: List[str]
     retrieval_scores: List[float]
-    top_chunks: List[RetrievalChunk] = Field(min_length=1, max_length=3)
+    top_chunks: List[RetrievalChunk] = Field(min_length=1)
     retrieved_context: str
     hit_at_1: Optional[bool] = None
     hit_at_3: Optional[bool] = None
@@ -253,7 +253,7 @@ class BaseGraphPipeline(ABC):
     ) -> Dict[str, Any]:
         retrieved_chunks = list(final_state.get("retrieved_chunks", []))
         top_chunks_for_schema = []
-        for rank, chunk in enumerate(retrieved_chunks[:3], start=1):
+        for rank, chunk in enumerate(retrieved_chunks, start=1):
             top_chunks_for_schema.append(
                 {
                     "rank": rank,
@@ -302,7 +302,7 @@ class BaseGraphPipeline(ABC):
                 "judge_model": None,
             },
             "retrieval": {
-                "k": self.config.retrieval_params.top_k,
+                "k": len(retrieved_chunks) if retrieved_chunks else self.config.retrieval_params.top_k,
                 "retrieved_para_ids": [str(chunk.get("chunk_id", "")) for chunk in retrieved_chunks],
                 "retrieval_scores": [float(chunk.get("score", 0.0)) for chunk in retrieved_chunks],
                 "top_chunks": top_chunks_for_schema,

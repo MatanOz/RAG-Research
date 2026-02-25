@@ -28,7 +28,7 @@ DEFAULT_EVAL_CONFIG: Dict[str, Any] = {
     },
     "runs": {},
     "evaluation": {
-        "default_k": 3,
+        "default_k": 5,
         "numeric_tolerance": 0.05,
         "hallucination_threshold": 0.5,
         "no_gold_policy": {

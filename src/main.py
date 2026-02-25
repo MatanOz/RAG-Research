@@ -70,6 +70,32 @@ def filter_gold_records(records: List[Dict[str, Any]], config: RunnerConfig) -> 
     return selected
 
 
+def build_run_output_filename(timestamp: str, selected: Dict[int, List[Dict[str, Any]]]) -> str:
+    paper_ids = sorted(selected.keys())
+    total_questions = sum(len(rows) for rows in selected.values())
+    question_ids = sorted(
+        {
+            int(item["question_id"])
+            for rows in selected.values()
+            for item in rows
+        }
+    )
+
+    if paper_ids:
+        paper_tag = f"p{paper_ids[0]:02d}-{paper_ids[-1]:02d}"
+    else:
+        paper_tag = "pnone"
+
+    if question_ids:
+        question_tag = f"q{question_ids[0]}-{question_ids[-1]}"
+    else:
+        question_tag = "qnone"
+
+    return (
+        f"run_{timestamp}_papers{len(paper_ids)}_{paper_tag}_{question_tag}_nq{total_questions}.jsonl"
+    )
+
+
 def run_pipeline(config_path: Path = DEFAULT_CONFIG_PATH, gold_path: Path = DEFAULT_GOLD_PATH) -> Path:
     if not OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY is not set.")
@@ -102,7 +128,7 @@ def run_pipeline(config_path: Path = DEFAULT_CONFIG_PATH, gold_path: Path = DEFA
 
     output_dir = Path("outputs") / config.pipeline_version
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"run_{timestamp}.jsonl"
+    output_path = output_dir / build_run_output_filename(timestamp=timestamp, selected=selected)
 
     openai_client = OpenAI(api_key=OPENAI_API_KEY)
     chroma_client = chromadb.PersistentClient(path=str(Path(config.paths.chroma_dir)))

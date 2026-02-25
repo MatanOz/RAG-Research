@@ -8,6 +8,7 @@ runs:
   #p2_hybrid: outputs/P2/run_20260223_150046.jsonl
   #p2_hybrid_160237: outputs/P2/run_20260223_160237.jsonl
   p2_imp_hybrid: outputs/P2_imp/run_20260223_163351.jsonl
+  p2_hybrid: outputs/P2/run_20260223_165232.jsonl
 evaluation:
   default_k: 3
   numeric_tolerance: 0.05

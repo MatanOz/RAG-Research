@@ -1,5 +1,5 @@
 project_name: chemical_rag_research
-pipeline_version: P2_imp
+pipeline_version: P3
 
 retrieval_params:
   embedding_model: text-embedding-3-large
@@ -17,10 +17,10 @@ llm_params:
 paths:
   data_dir: data
   chroma_dir: data/derived/chroma
-  output_dir: outputs/P2
+  output_dir: outputs/P3
 
 run_control:
-  paper_ids: null
+  paper_ids: [3,4]
   max_papers: null
   question_ids: null
   max_questions_per_paper: null

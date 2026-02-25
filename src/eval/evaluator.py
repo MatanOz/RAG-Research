@@ -481,7 +481,24 @@ class Evaluator:
                     continue
 
                 qtype = str(record.get("question_type", question_type or "FREE_TEXT")).upper()
-                model_answer = str(record.get("generation", {}).get("model_answer", ""))
+                generation_payload = record.get("generation", {})
+                if not isinstance(generation_payload, dict):
+                    generation_payload = {}
+
+                model_answer = str(generation_payload.get("model_answer", ""))
+                raw_reasoning = generation_payload.get("reasoning")
+                reasoning = str(raw_reasoning).strip() if raw_reasoning is not None else None
+                if reasoning == "":
+                    reasoning = None
+
+                raw_evidence_quotes = generation_payload.get("evidence_quotes", [])
+                if isinstance(raw_evidence_quotes, list):
+                    evidence_quotes = [str(item).strip() for item in raw_evidence_quotes if str(item).strip()]
+                elif raw_evidence_quotes is None:
+                    evidence_quotes = []
+                else:
+                    single_quote = str(raw_evidence_quotes).strip()
+                    evidence_quotes = [single_quote] if single_quote else []
                 retrieved_context = self._extract_retrieved_context(record)
                 retrieved_chunks = self._extract_retrieved_chunks(record, default_k)
 
@@ -600,6 +617,12 @@ class Evaluator:
 
                 row["pipelines"][label] = {
                     "model_answer": model_answer,
+                    "reasoning": reasoning,
+                    "evidence_quotes": evidence_quotes,
+                    "generation": {
+                        "reasoning": reasoning,
+                        "evidence_quotes": evidence_quotes,
+                    },
                     "qa_score": round(qa_score, 6),
                     "groundedness": round(groundedness, 6),
                     "retrieval_score": round(retrieval_score, 6),

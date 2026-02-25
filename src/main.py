@@ -197,7 +197,7 @@ def run_pipeline(config_path: Path = DEFAULT_CONFIG_PATH, gold_path: Path = DEFA
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run graph-based pipeline (P0/P1/P2/P2_imp)")
+    parser = argparse.ArgumentParser(description="Run graph-based pipeline (P0/P1/P2/P2_imp/P3)")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
     parser.add_argument("--gold", type=Path, default=DEFAULT_GOLD_PATH)
     return parser.parse_args()

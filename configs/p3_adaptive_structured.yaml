@@ -1,28 +1,28 @@
 project_name: chemical_rag_research
-pipeline_version: P2_imp
+pipeline_version: P3
 
 retrieval_params:
   embedding_model: text-embedding-3-large
   chunking_method: semantic_markdown
   chunk_size: 1000
   chunk_overlap: 150
-  top_k: 3
+  top_k: 5
   embedding_batch_size: 64
 
 llm_params:
   model_name: gpt-4o-mini
   temperature: 0.0
-  max_tokens: 256
+  max_tokens: 1024
 
 paths:
   data_dir: data
   chroma_dir: data/derived/chroma
-  output_dir: outputs/P2
+  output_dir: outputs/P3
 
 run_control:
-  paper_ids: [8]
+  paper_ids: [1]
   max_papers: null
-  question_ids: null
+  question_ids: [1,2,3,4,5,6,7]
   max_questions_per_paper: null
 
 logging:

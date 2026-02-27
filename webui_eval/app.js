@@ -127,6 +127,19 @@ function normalizeRetrievedChunks(chunks) {
     }));
 }
 
+function normalizeEvidenceQuotes(quotes) {
+  if (Array.isArray(quotes)) {
+    return quotes
+      .map((quote) => String(quote || "").trim())
+      .filter((quote) => quote.length > 0);
+  }
+  if (quotes === undefined || quotes === null) {
+    return [];
+  }
+  const single = String(quotes).trim();
+  return single ? [single] : [];
+}
+
 function normalizePaperId(value) {
   if (value === undefined || value === null || value === "") {
     return null;
@@ -254,11 +267,57 @@ function mergePayloads(payloadEntries) {
             continue;
           }
           const existingPipeline = current.pipelines[pipelineLabel] || {};
+          const existingGeneration =
+            existingPipeline.generation && typeof existingPipeline.generation === "object"
+              ? existingPipeline.generation
+              : {};
+          const incomingGeneration =
+            pipelineData.generation && typeof pipelineData.generation === "object"
+              ? pipelineData.generation
+              : {};
+          const generationReasoning = String(
+            pickFirstNonEmpty([
+              existingGeneration.reasoning,
+              existingPipeline.reasoning,
+              incomingGeneration.reasoning,
+              pipelineData.reasoning,
+              "",
+            ]),
+          );
+          const generationCritiqueLogic = String(
+            pickFirstNonEmpty([
+              existingGeneration.critique_logic,
+              existingPipeline.critique_logic,
+              incomingGeneration.critique_logic,
+              pipelineData.critique_logic,
+              "",
+            ]),
+          );
+          const generationEvidenceQuotes = (() => {
+            const existingQuotes = normalizeEvidenceQuotes(existingGeneration.evidence_quotes).length
+              ? normalizeEvidenceQuotes(existingGeneration.evidence_quotes)
+              : normalizeEvidenceQuotes(existingPipeline.evidence_quotes);
+            if (existingQuotes.length > 0) {
+              return existingQuotes;
+            }
+            const incomingQuotes = normalizeEvidenceQuotes(incomingGeneration.evidence_quotes).length
+              ? normalizeEvidenceQuotes(incomingGeneration.evidence_quotes)
+              : normalizeEvidenceQuotes(pipelineData.evidence_quotes);
+            return incomingQuotes;
+          })();
           current.pipelines[pipelineLabel] = {
             ...existingPipeline,
             model_answer: String(
               pickFirstNonEmpty([existingPipeline.model_answer, pipelineData.model_answer, ""]),
             ),
+            reasoning: generationReasoning,
+            critique_logic: generationCritiqueLogic,
+            evidence_quotes: generationEvidenceQuotes,
+            generation: {
+              reasoning: generationReasoning,
+              evidence_quotes: generationEvidenceQuotes,
+              critique_logic: generationCritiqueLogic,
+            },
             qa_score: toNumber(pipelineData.qa_score, toNumber(existingPipeline.qa_score, 0)),
             groundedness: toNumber(
               pipelineData.groundedness,
@@ -824,6 +883,60 @@ function renderQuestionCards(merged, labels) {
         judge.className = "judge-note rounded-md border border-slate-200 bg-white p-2 text-xs text-slate-600";
         judge.textContent = `[AI Judge] ${pdata.judge_explanation || "No explanation provided."}`;
         card.appendChild(judge);
+
+        const reasoning = String(pdata.generation?.reasoning || pdata.reasoning || "").trim();
+        const evidenceQuotes = normalizeEvidenceQuotes(
+          pdata.generation?.evidence_quotes ?? pdata.evidence_quotes,
+        );
+        if (reasoning || evidenceQuotes.length > 0) {
+          const explainer = document.createElement("div");
+          explainer.className = "mt-2 rounded-md border border-indigo-200 bg-indigo-50 p-2 text-xs text-indigo-900";
+
+          const title = document.createElement("p");
+          title.className = "mb-1 text-xs font-semibold text-indigo-800";
+          title.textContent = "Evidence & Reasoning";
+          explainer.appendChild(title);
+
+          if (reasoning) {
+            const reasoningText = document.createElement("p");
+            reasoningText.className = "mb-2 whitespace-pre-wrap text-xs text-indigo-900";
+            reasoningText.textContent = reasoning;
+            explainer.appendChild(reasoningText);
+          }
+
+          if (evidenceQuotes.length > 0) {
+            const quoteList = document.createElement("ul");
+            quoteList.className = "list-disc space-y-1 pl-4 text-xs";
+            evidenceQuotes.forEach((quote) => {
+              const item = document.createElement("li");
+              item.textContent = quote;
+              quoteList.appendChild(item);
+            });
+            explainer.appendChild(quoteList);
+          }
+
+          card.appendChild(explainer);
+        }
+
+        const critiqueLogic = String(
+          pdata?.generation?.critique_logic ?? pdata?.critique_logic ?? "",
+        ).trim();
+        if (critiqueLogic) {
+          const critiqueBox = document.createElement("div");
+          critiqueBox.className = "mt-2 rounded-md border border-rose-200 bg-rose-50 p-2 text-xs text-rose-900";
+
+          const critiqueTitle = document.createElement("p");
+          critiqueTitle.className = "mb-1 text-xs font-semibold text-rose-800";
+          critiqueTitle.textContent = "Agent Critique";
+          critiqueBox.appendChild(critiqueTitle);
+
+          const critiqueText = document.createElement("p");
+          critiqueText.className = "whitespace-pre-wrap text-xs text-rose-900";
+          critiqueText.textContent = critiqueLogic;
+          critiqueBox.appendChild(critiqueText);
+
+          card.appendChild(critiqueBox);
+        }
 
         card.appendChild(createEvidencePanel(pdata));
       }

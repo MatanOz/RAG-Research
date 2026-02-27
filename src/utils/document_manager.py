@@ -173,16 +173,45 @@ def extract_markdown_with_pymupdf(pdf_path: Path) -> str:
 
 
 def clean_markdown_references(markdown_text: str) -> str:
-    reference_pattern = re.compile(
-        r"(?im)^\s*#*\s*.*(?:references|bibliography|literature cited|notes and references).*$",
+    if not markdown_text:
+        return markdown_text
+
+    # Defense in depth:
+    # 1) Strictly match only heading-like lines.
+    # 2) Accept matches only in the tail section of the document (>60%).
+    reference_heading_pattern = re.compile(
+        r"(?im)^\s*(?:#{1,6}\s*|(?:\*\*|__)\s*)?(?:[■•]\s*)?(?:\d+(?:\.\d+)*\s+)?"
+        r"(references|bibliography|literature cited|notes and references)"
+        r"\s*(?:[:.\-–—]\s*)?(?:\*\*|__)?\s*$",
         flags=re.MULTILINE,
     )
-    match = reference_pattern.search(markdown_text)
-    if not match:
-        return markdown_text
-    found_header = match.group(0).strip()
-    _log_info("Cleaned references. Truncated from match: %s", found_header)
-    return markdown_text[: match.start()].rstrip()
+    min_position_ratio = 0.60
+    first_early_candidate: Optional[str] = None
+    first_early_ratio: Optional[float] = None
+
+    for match in reference_heading_pattern.finditer(markdown_text):
+        position_ratio = float(match.start()) / float(max(len(markdown_text), 1))
+        found_header = match.group(0).strip()
+        if position_ratio < min_position_ratio:
+            if first_early_candidate is None:
+                first_early_candidate = found_header
+                first_early_ratio = position_ratio
+            continue
+
+        _log_info(
+            "Cleaned references. Truncated from match: %s (position=%.1f%%)",
+            found_header,
+            position_ratio * 100.0,
+        )
+        return markdown_text[: match.start()].rstrip()
+
+    if first_early_candidate is not None and first_early_ratio is not None:
+        _log_info(
+            "Ignored early reference-like header: %s (position=%.1f%%)",
+            first_early_candidate,
+            first_early_ratio * 100.0,
+        )
+    return markdown_text
 
 
 def extract_heuristic_metadata(chunk_text: str) -> Dict[str, bool]:

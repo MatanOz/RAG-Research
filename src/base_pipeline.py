@@ -40,7 +40,7 @@ class RetrievalSection(BaseModel):
     k: int = Field(ge=1)
     retrieved_para_ids: List[str]
     retrieval_scores: List[float]
-    top_chunks: List[RetrievalChunk] = Field(min_length=1, max_length=3)
+    top_chunks: List[RetrievalChunk] = Field(min_length=1)
     retrieved_context: str
     hit_at_1: Optional[bool] = None
     hit_at_3: Optional[bool] = None
@@ -52,6 +52,10 @@ class RetrievalSection(BaseModel):
 
 class GenerationSection(BaseModel):
     model_answer: str
+    reasoning: Optional[str] = None
+    evidence_quotes: Optional[List[str]] = None
+    is_abstained: bool = False
+    critique_logic: Optional[str] = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -111,6 +115,7 @@ class BaseGraphPipeline(ABC):
             "question": str(gold_item["question"]),
             "paper_id": int(gold_item["paper_id"]),
             "question_id": int(gold_item["question_id"]),
+            "question_type": str(gold_item.get("question_type", "FREE_TEXT")),
             "retrieved_chunks": [],
             "model_answer": "",
             "embedding_tokens": 0,
@@ -250,7 +255,7 @@ class BaseGraphPipeline(ABC):
     ) -> Dict[str, Any]:
         retrieved_chunks = list(final_state.get("retrieved_chunks", []))
         top_chunks_for_schema = []
-        for rank, chunk in enumerate(retrieved_chunks[:3], start=1):
+        for rank, chunk in enumerate(retrieved_chunks, start=1):
             top_chunks_for_schema.append(
                 {
                     "rank": rank,
@@ -266,6 +271,27 @@ class BaseGraphPipeline(ABC):
         llm_output_tokens = int(final_state.get("llm_output_tokens", 0))
         tokens_input = embedding_tokens + llm_input_tokens
         tokens_output = llm_output_tokens
+        raw_reasoning = final_state.get("reasoning")
+        reasoning = str(raw_reasoning).strip() if raw_reasoning is not None else None
+        if reasoning == "":
+            reasoning = None
+
+        raw_evidence_quotes = final_state.get("evidence_quotes")
+        evidence_quotes: Optional[List[str]]
+        if isinstance(raw_evidence_quotes, list):
+            normalized_quotes = [str(item).strip() for item in raw_evidence_quotes if str(item).strip()]
+            evidence_quotes = normalized_quotes or None
+        elif raw_evidence_quotes is None:
+            evidence_quotes = None
+        else:
+            single_quote = str(raw_evidence_quotes).strip()
+            evidence_quotes = [single_quote] if single_quote else None
+
+        raw_critique_logic = final_state.get("critique_logic")
+        critique_logic = str(raw_critique_logic).strip() if raw_critique_logic is not None else None
+        if critique_logic == "":
+            critique_logic = None
+        is_abstained = bool(final_state.get("is_abstained", False))
 
         payload = {
             "run_id": self.run_id,
@@ -284,7 +310,7 @@ class BaseGraphPipeline(ABC):
                 "judge_model": None,
             },
             "retrieval": {
-                "k": self.config.retrieval_params.top_k,
+                "k": len(retrieved_chunks) if retrieved_chunks else self.config.retrieval_params.top_k,
                 "retrieved_para_ids": [str(chunk.get("chunk_id", "")) for chunk in retrieved_chunks],
                 "retrieval_scores": [float(chunk.get("score", 0.0)) for chunk in retrieved_chunks],
                 "top_chunks": top_chunks_for_schema,
@@ -296,6 +322,10 @@ class BaseGraphPipeline(ABC):
             },
             "generation": {
                 "model_answer": str(final_state.get("model_answer", "")),
+                "reasoning": reasoning,
+                "evidence_quotes": evidence_quotes,
+                "is_abstained": is_abstained,
+                "critique_logic": critique_logic,
             },
             "logs": {
                 "latency_ms": round(latency_ms, 3),

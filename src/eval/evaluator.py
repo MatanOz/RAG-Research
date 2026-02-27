@@ -28,7 +28,7 @@ DEFAULT_EVAL_CONFIG: Dict[str, Any] = {
     },
     "runs": {},
     "evaluation": {
-        "default_k": 3,
+        "default_k": 5,
         "numeric_tolerance": 0.05,
         "hallucination_threshold": 0.5,
         "no_gold_policy": {
@@ -481,7 +481,29 @@ class Evaluator:
                     continue
 
                 qtype = str(record.get("question_type", question_type or "FREE_TEXT")).upper()
-                model_answer = str(record.get("generation", {}).get("model_answer", ""))
+                generation_payload = record.get("generation", {})
+                if not isinstance(generation_payload, dict):
+                    generation_payload = {}
+
+                model_answer = str(generation_payload.get("model_answer", ""))
+                raw_reasoning = generation_payload.get("reasoning")
+                reasoning = str(raw_reasoning).strip() if raw_reasoning is not None else None
+                if reasoning == "":
+                    reasoning = None
+
+                raw_critique_logic = generation_payload.get("critique_logic")
+                critique_logic = str(raw_critique_logic).strip() if raw_critique_logic is not None else None
+                if critique_logic == "":
+                    critique_logic = None
+
+                raw_evidence_quotes = generation_payload.get("evidence_quotes", [])
+                if isinstance(raw_evidence_quotes, list):
+                    evidence_quotes = [str(item).strip() for item in raw_evidence_quotes if str(item).strip()]
+                elif raw_evidence_quotes is None:
+                    evidence_quotes = []
+                else:
+                    single_quote = str(raw_evidence_quotes).strip()
+                    evidence_quotes = [single_quote] if single_quote else []
                 retrieved_context = self._extract_retrieved_context(record)
                 retrieved_chunks = self._extract_retrieved_chunks(record, default_k)
 
@@ -518,7 +540,11 @@ class Evaluator:
                 qa_score = qa_score_pre_guard
 
                 is_no_gold_case = self._is_no_gold_case(gold_item, gold_answer, no_gold_policy)
-                is_abstained = self._is_abstention_answer(model_answer, no_gold_policy)
+                is_abstained_field = generation_payload.get("is_abstained")
+                if isinstance(is_abstained_field, bool):
+                    is_abstained = is_abstained_field
+                else:
+                    is_abstained = self._is_abstention_answer(model_answer, no_gold_policy)
                 forced_hallucination = False
                 abstention_penalized_with_gold = False
                 numeric_coverage = {"gold_count": 0.0, "matched_count": 0.0, "coverage": 1.0}
@@ -600,6 +626,14 @@ class Evaluator:
 
                 row["pipelines"][label] = {
                     "model_answer": model_answer,
+                    "reasoning": reasoning,
+                    "evidence_quotes": evidence_quotes,
+                    "critique_logic": critique_logic,
+                    "generation": {
+                        "reasoning": reasoning,
+                        "evidence_quotes": evidence_quotes,
+                        "critique_logic": critique_logic,
+                    },
                     "qa_score": round(qa_score, 6),
                     "groundedness": round(groundedness, 6),
                     "retrieval_score": round(retrieval_score, 6),

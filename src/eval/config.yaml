@@ -3,14 +3,19 @@ paths:
   output_path: outputs/eval/ui_dashboard_data.json
 
 runs:
-  #P0_Baseline_emb_small: outputs/P0/run_20260222_223203.jsonl
-  #P1_Semantic_emb_large: outputs/P1/run_20260222_223459.jsonl
-  #p2_hybrid: outputs/P2/run_20260223_150046.jsonl
-  #p2_hybrid_160237: outputs/P2/run_20260223_160237.jsonl
-  p2_imp_hybrid: outputs/P2_imp/run_20260223_163351.jsonl
-  p2_hybrid: outputs/P2/run_20260223_165232.jsonl
+  #P0_Baseline_full: outputs/P0/run_20260225_171720_papers10_p01-10_q1-49_nq490.jsonl
+  #P1_Semantic_full: outputs/P1/run_20260225_174345_papers10_p01-10_q1-49_nq490.jsonl
+  #p2_imp_hybrid_8: outputs/P2_imp/run_20260225_204755_papers1_p08-08_q1-49_nq49.jsonl
+  #p3: outputs/P3/run_20260225_195541_papers1_p08-08_q1-49_nq49.jsonl
+  #p3_new: outputs/P3/run_20260225_202948_papers1_p08-08_q1-49_nq49.jsonl
+  #p3_top5: outputs/P3/run_20260225_211044_papers1_p08-08_q1-49_nq49.jsonl
+  #p4_art8: outputs/P4/run_20260225_220146_papers1_p08-08_q1-49_nq49.jsonl
+  #p4_art8_critic_fix: outputs/P4/run_20260225_223416_papers1_p08-08_q1-49_nq49.jsonl
+  #p4_bypass_art1+2: outputs/P4/run_20260225_234744_papers2_p01-02_q1-49_nq98.jsonl
+  p4_4o_model_art5: outputs/P4/run_20260227_140600_papers1_p05-05_q1-49_nq49.jsonl
+
 evaluation:
-  default_k: 3
+  default_k: 5
   numeric_tolerance: 0.05
   hallucination_threshold: 0.5
   no_gold_policy:
@@ -92,7 +97,7 @@ judge:
   enabled: true
   model: gpt-4o-mini
   temperature: 0.0
-  max_tokens: 350
+  max_tokens: 500
 
 logging:
   level: INFO

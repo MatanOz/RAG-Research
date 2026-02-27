@@ -10,7 +10,7 @@ retrieval_params:
   embedding_batch_size: 64
 
 llm_params:
-  model_name: gpt-4o-mini
+  model_name: gpt-4o
   temperature: 0.0
   max_tokens: 1024
 
@@ -20,7 +20,7 @@ paths:
   output_dir: outputs/P4
 
 run_control:
-  paper_ids: [8]
+  paper_ids: [5]
   max_papers: null
   question_ids: null
   max_questions_per_paper: null

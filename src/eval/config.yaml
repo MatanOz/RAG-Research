@@ -11,7 +11,8 @@ runs:
   #p3_top5: outputs/P3/run_20260225_211044_papers1_p08-08_q1-49_nq49.jsonl
   #p4_art8: outputs/P4/run_20260225_220146_papers1_p08-08_q1-49_nq49.jsonl
   #p4_art8_critic_fix: outputs/P4/run_20260225_223416_papers1_p08-08_q1-49_nq49.jsonl
-  p4_bypass: outputs/P4/run_20260225_232040_papers1_p08-08_q1-49_nq49.jsonl
+  #p4_bypass_art1+2: outputs/P4/run_20260225_234744_papers2_p01-02_q1-49_nq98.jsonl
+  p4_4o_model_art5: outputs/P4/run_20260227_140600_papers1_p05-05_q1-49_nq49.jsonl
 
 evaluation:
   default_k: 5

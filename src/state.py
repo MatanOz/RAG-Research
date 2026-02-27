@@ -17,6 +17,10 @@ class AgentState(TypedDict):
     evidence_quotes: NotRequired[List[str]]
     critique_logic: NotRequired[str]
     is_abstained: NotRequired[bool]
+    loop_count: NotRequired[int]
+    critic_status: NotRequired[str]
+    critic_feedback: NotRequired[str]
+    new_search_query: NotRequired[str]
     embedding_tokens: int
     llm_input_tokens: int
     llm_output_tokens: int

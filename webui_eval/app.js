@@ -140,6 +140,30 @@ function normalizeEvidenceQuotes(quotes) {
   return single ? [single] : [];
 }
 
+function normalizeLoopHistory(history) {
+  if (!Array.isArray(history)) {
+    return [];
+  }
+  return history
+    .filter((step) => step && typeof step === "object")
+    .map((step, idx) => ({
+      loop_index: toNumber(step.loop_index, idx + 1),
+      query_used: String(step.query_used || ""),
+      draft_answer: String(step.draft_answer || ""),
+      critic_status: String(step.critic_status || ""),
+      critic_feedback: String(step.critic_feedback || ""),
+      critique_logic: String(step.critique_logic || ""),
+      new_search_query: String(step.new_search_query || ""),
+      final_answer: String(step.final_answer || ""),
+      is_abstained: Boolean(step.is_abstained),
+      forced_finalize: Boolean(step.forced_finalize),
+      retrieved_chunk_count: toNumber(step.retrieved_chunk_count, 0),
+      retrieved_chunk_ids: Array.isArray(step.retrieved_chunk_ids)
+        ? step.retrieved_chunk_ids.map((x) => String(x || ""))
+        : [],
+    }));
+}
+
 function normalizePaperId(value) {
   if (value === undefined || value === null || value === "") {
     return null;
@@ -275,6 +299,25 @@ function mergePayloads(payloadEntries) {
             pipelineData.generation && typeof pipelineData.generation === "object"
               ? pipelineData.generation
               : {};
+          const existingLoopHistory = normalizeLoopHistory(existingGeneration.loop_history);
+          const incomingLoopHistory = normalizeLoopHistory(incomingGeneration.loop_history);
+          const generationLoopHistory =
+            incomingLoopHistory.length >= existingLoopHistory.length
+              ? incomingLoopHistory
+              : existingLoopHistory;
+          const generationLoopCount = toNumber(
+            incomingGeneration.loop_count,
+            toNumber(existingGeneration.loop_count, 0),
+          );
+          const generationCriticStatus = String(
+            pickFirstNonEmpty([existingGeneration.critic_status, incomingGeneration.critic_status, ""]),
+          );
+          const generationCriticFeedback = String(
+            pickFirstNonEmpty([existingGeneration.critic_feedback, incomingGeneration.critic_feedback, ""]),
+          );
+          const generationNewSearchQuery = String(
+            pickFirstNonEmpty([existingGeneration.new_search_query, incomingGeneration.new_search_query, ""]),
+          );
           const generationReasoning = String(
             pickFirstNonEmpty([
               existingGeneration.reasoning,
@@ -317,6 +360,11 @@ function mergePayloads(payloadEntries) {
               reasoning: generationReasoning,
               evidence_quotes: generationEvidenceQuotes,
               critique_logic: generationCritiqueLogic,
+              loop_history: generationLoopHistory,
+              loop_count: generationLoopCount,
+              critic_status: generationCriticStatus,
+              critic_feedback: generationCriticFeedback,
+              new_search_query: generationNewSearchQuery,
             },
             qa_score: toNumber(pipelineData.qa_score, toNumber(existingPipeline.qa_score, 0)),
             groundedness: toNumber(
@@ -704,12 +752,27 @@ function createEvidencePanel(pdata) {
 
   const chunks = normalizeRetrievedChunks(pdata.retrieved_chunks);
   if (chunks.length) {
+    let addedDivider = false;
     chunks.forEach((chunk) => {
+      const isReretrievalChunk = toNumber(chunk.rank, 0) > 5;
+      // Add visual separator for Re-Retrieval chunks.
+      if (isReretrievalChunk && !addedDivider) {
+        const divider = document.createElement("div");
+        divider.className = "my-4 flex items-center gap-2";
+        divider.innerHTML = `<span class="h-px w-full bg-blue-200"></span><span class="text-[10px] font-bold uppercase text-blue-600 whitespace-nowrap bg-blue-50 px-2 rounded-full border border-blue-200">Re-Retrieval Chunks</span><span class="h-px w-full bg-blue-200"></span>`;
+        retrievedWrap.appendChild(divider);
+        addedDivider = true;
+      }
+
       const chunkBox = document.createElement("div");
-      chunkBox.className = "mb-2 rounded-md border border-sky-200 bg-sky-50 p-2";
+      chunkBox.className = isReretrievalChunk
+        ? "mb-2 rounded-md border border-blue-200 bg-blue-50 p-2"
+        : "mb-2 rounded-md border border-sky-200 bg-sky-50 p-2";
 
       const chunkMeta = document.createElement("p");
-      chunkMeta.className = "mb-1 text-xs font-semibold text-sky-800";
+      chunkMeta.className = isReretrievalChunk
+        ? "mb-1 text-xs font-semibold text-blue-800"
+        : "mb-1 text-xs font-semibold text-sky-800";
       chunkMeta.textContent = `Rank ${toNumber(chunk.rank, 0)} | score ${formatDecimal(chunk.score, 4)}${chunk.chunk_id ? ` | ${chunk.chunk_id}` : ""}`;
       chunkBox.appendChild(chunkMeta);
 
@@ -828,6 +891,20 @@ function renderQuestionCards(merged, labels) {
       title.className = "text-sm font-semibold text-slate-800";
       title.textContent = label;
 
+      const criticStatus = pdata?.generation?.critic_status;
+      if (criticStatus) {
+        const badge = document.createElement("span");
+        let badgeStyle = "bg-slate-100 text-slate-800 border-slate-200";
+        if (criticStatus === "ACCEPT") badgeStyle = "bg-emerald-100 text-emerald-800 border-emerald-200";
+        else if (criticStatus === "REVISE") badgeStyle = "bg-amber-100 text-amber-800 border-amber-200";
+        else if (criticStatus === "RE_RETRIEVE") badgeStyle = "bg-blue-100 text-blue-800 border-blue-200";
+        else if (criticStatus === "ABSTAIN") badgeStyle = "bg-rose-100 text-rose-800 border-rose-200";
+
+        badge.className = `ml-2 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide ${badgeStyle}`;
+        badge.textContent = criticStatus;
+        title.appendChild(badge);
+      }
+
       head.appendChild(title);
       card.appendChild(head);
 
@@ -918,24 +995,137 @@ function renderQuestionCards(merged, labels) {
           card.appendChild(explainer);
         }
 
-        const critiqueLogic = String(
-          pdata?.generation?.critique_logic ?? pdata?.critique_logic ?? "",
-        ).trim();
-        if (critiqueLogic) {
-          const critiqueBox = document.createElement("div");
-          critiqueBox.className = "mt-2 rounded-md border border-rose-200 bg-rose-50 p-2 text-xs text-rose-900";
+        const loopCount = toNumber(pdata.generation?.loop_count, 0);
+        const criticFeedback = pdata.generation?.critic_feedback;
+        const newQuery = pdata.generation?.new_search_query;
+        const criticStatusText = String(pdata.generation?.critic_status || "").trim();
+        const critiqueLogic = String(pdata.generation?.critique_logic || pdata.critique_logic || "").trim();
+        const displayLogic =
+          critiqueLogic ||
+          (loopCount > 0
+            ? `Critic status: ${criticStatusText || "UNKNOWN"}${
+                criticFeedback ? " (feedback provided below)." : " (accepted without additional correction details)."
+              }`
+            : "");
 
-          const critiqueTitle = document.createElement("p");
-          critiqueTitle.className = "mb-1 text-xs font-semibold text-rose-800";
-          critiqueTitle.textContent = "Agent Critique";
-          critiqueBox.appendChild(critiqueTitle);
+        if (loopCount > 0 || criticFeedback || newQuery || critiqueLogic) {
+          const traceBox = document.createElement("div");
+          traceBox.className = "mt-3 rounded-md border border-fuchsia-200 bg-fuchsia-50 p-3 text-xs text-fuchsia-900";
 
-          const critiqueText = document.createElement("p");
-          critiqueText.className = "whitespace-pre-wrap text-xs text-rose-900";
-          critiqueText.textContent = critiqueLogic;
-          critiqueBox.appendChild(critiqueText);
+          const traceTitle = document.createElement("p");
+          traceTitle.className = "mb-2 text-xs font-bold text-fuchsia-800 uppercase tracking-wider";
+          traceTitle.textContent =
+            loopCount > 0 ? `🤖 Agent Trace (Loops: ${loopCount})` : "🤖 Critic Filter (Single Pass)";
+          traceBox.appendChild(traceTitle);
 
-          card.appendChild(critiqueBox);
+          if (displayLogic) {
+             const logicText = document.createElement("p");
+             logicText.className = "whitespace-pre-wrap mb-1";
+             logicText.innerHTML = `<strong>Logic:</strong> ${displayLogic}`;
+             traceBox.appendChild(logicText);
+          }
+          if (criticFeedback) {
+             const feedbackText = document.createElement("p");
+             feedbackText.className = "whitespace-pre-wrap mb-1 text-rose-700";
+             feedbackText.innerHTML = `<strong>Critic Feedback:</strong> ${criticFeedback}`;
+             traceBox.appendChild(feedbackText);
+          }
+          if (newQuery) {
+             const queryText = document.createElement("p");
+             queryText.className = "whitespace-pre-wrap font-mono bg-white border border-fuchsia-200 p-2 mt-2 rounded shadow-sm text-blue-800";
+             queryText.innerHTML = `<strong>Re-Retrieval Query:</strong><br/>"${newQuery}"`;
+             traceBox.appendChild(queryText);
+          }
+          card.appendChild(traceBox);
+        }
+
+        const loopHistory = normalizeLoopHistory(pdata.generation?.loop_history);
+        if (loopHistory.length > 0) {
+          const timeline = document.createElement("details");
+          timeline.className = "mt-3 rounded-md border border-violet-200 bg-violet-50";
+
+          const timelineSummary = document.createElement("summary");
+          timelineSummary.className = "cursor-pointer px-3 py-2 text-xs font-semibold text-violet-800";
+          timelineSummary.textContent = `Loop History (${loopHistory.length} step${loopHistory.length === 1 ? "" : "s"})`;
+          timeline.appendChild(timelineSummary);
+
+          const timelineBody = document.createElement("div");
+          timelineBody.className = "space-y-2 border-t border-violet-200 px-3 py-3";
+
+          loopHistory.forEach((step) => {
+            const stepBox = document.createElement("div");
+            stepBox.className = "rounded-md border border-violet-200 bg-white p-2 text-xs text-violet-900";
+
+            const status = String(step.critic_status || "").trim();
+            let statusClass = "bg-slate-100 text-slate-800 border-slate-200";
+            if (status === "ACCEPT") statusClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
+            else if (status === "REVISE") statusClass = "bg-amber-100 text-amber-800 border-amber-200";
+            else if (status === "RE_RETRIEVE") statusClass = "bg-blue-100 text-blue-800 border-blue-200";
+            else if (status === "ABSTAIN") statusClass = "bg-rose-100 text-rose-800 border-rose-200";
+
+            const header = document.createElement("div");
+            header.className = "mb-1 flex flex-wrap items-center gap-2";
+            const loopLabel = document.createElement("span");
+            loopLabel.className = "font-semibold text-violet-800";
+            loopLabel.textContent = `Loop ${toNumber(step.loop_index, 0)}`;
+            header.appendChild(loopLabel);
+            if (status) {
+              const statusBadge = document.createElement("span");
+              statusBadge.className = `rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide ${statusClass}`;
+              statusBadge.textContent = status;
+              header.appendChild(statusBadge);
+            }
+            if (step.forced_finalize) {
+              const forcedTag = document.createElement("span");
+              forcedTag.className = "rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-orange-800";
+              forcedTag.textContent = "MAX LOOP FALLBACK";
+              header.appendChild(forcedTag);
+            }
+            stepBox.appendChild(header);
+
+            const queryText = document.createElement("p");
+            queryText.className = "mb-1 whitespace-pre-wrap";
+            queryText.innerHTML = `<strong>Query used:</strong> ${step.query_used || "(none)"}`;
+            stepBox.appendChild(queryText);
+
+            if (step.new_search_query) {
+              const newQueryText = document.createElement("p");
+              newQueryText.className = "mb-1 whitespace-pre-wrap text-blue-800";
+              newQueryText.innerHTML = `<strong>Rephrase query:</strong> ${step.new_search_query}`;
+              stepBox.appendChild(newQueryText);
+            }
+
+            if (step.critic_feedback) {
+              const feedbackText = document.createElement("p");
+              feedbackText.className = "mb-1 whitespace-pre-wrap text-rose-700";
+              feedbackText.innerHTML = `<strong>Feedback:</strong> ${step.critic_feedback}`;
+              stepBox.appendChild(feedbackText);
+            }
+
+            const chunkCountText = document.createElement("p");
+            chunkCountText.className = "mb-1";
+            chunkCountText.innerHTML = `<strong>Retrieved chunks:</strong> ${toNumber(step.retrieved_chunk_count, 0)}`;
+            stepBox.appendChild(chunkCountText);
+
+            if (step.retrieved_chunk_ids.length > 0) {
+              const chunkIdsText = document.createElement("p");
+              chunkIdsText.className = "mb-1 whitespace-pre-wrap font-mono text-[11px] text-violet-700";
+              chunkIdsText.innerHTML = `<strong>Chunk IDs:</strong> ${step.retrieved_chunk_ids.join(", ")}`;
+              stepBox.appendChild(chunkIdsText);
+            }
+
+            if (step.final_answer) {
+              const finalText = document.createElement("p");
+              finalText.className = "whitespace-pre-wrap";
+              finalText.innerHTML = `<strong>Final answer at this step:</strong> ${step.final_answer}`;
+              stepBox.appendChild(finalText);
+            }
+
+            timelineBody.appendChild(stepBox);
+          });
+
+          timeline.appendChild(timelineBody);
+          card.appendChild(timeline);
         }
 
         card.appendChild(createEvidencePanel(pdata));

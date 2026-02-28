@@ -15,6 +15,41 @@
       </header>
 
       <section class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 class="mb-3 text-sm font-bold uppercase tracking-wider text-slate-500">Agentic Loop Legend</h2>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+
+          <div class="rounded-lg border border-slate-100 bg-slate-50 p-3">
+            <div class="mb-2 flex items-center">
+              <span class="rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-emerald-800">ACCEPT</span>
+            </div>
+            <p class="text-xs text-slate-600">The agent verified the draft is fully compliant and grounded. Approved immediately without extra cycles.</p>
+          </div>
+
+          <div class="rounded-lg border border-slate-100 bg-slate-50 p-3">
+            <div class="mb-2 flex items-center">
+              <span class="rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-amber-800">REVISE</span>
+            </div>
+            <p class="text-xs text-slate-600">The agent detected a formatting or logical error, generated internal feedback, and successfully self-corrected.</p>
+          </div>
+
+          <div class="rounded-lg border border-slate-100 bg-slate-50 p-3">
+            <div class="mb-2 flex items-center">
+              <span class="rounded-full border border-blue-200 bg-blue-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-blue-800">RE_RETRIEVE</span>
+            </div>
+            <p class="text-xs text-slate-600">Insufficient evidence. Agent dynamically formulated a new query to fetch additional chunks.</p>
+          </div>
+
+          <div class="rounded-lg border border-slate-100 bg-slate-50 p-3">
+            <div class="mb-2 flex items-center">
+              <span class="rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-rose-800">ABSTAIN</span>
+            </div>
+            <p class="text-xs text-slate-600">Data missing. Agent abstained to prevent hallucination.</p>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 class="text-lg font-semibold">Data Loader</h2>
           <div class="flex items-center gap-2">

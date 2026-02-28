@@ -236,11 +236,16 @@ class P5Ver1_Pipeline(P3_Pipeline):
         usage = getattr(completion, "usage", None)
         llm_input_tokens = int(state.get("llm_input_tokens", 0)) + self._usage_tokens(usage, "prompt_tokens")
         llm_output_tokens = int(state.get("llm_output_tokens", 0)) + self._usage_tokens(usage, "completion_tokens")
+        drafter_input_tokens = int(state.get("drafter_input_tokens", 0)) + self._usage_tokens(usage, "prompt_tokens")
+        drafter_output_tokens = int(state.get("drafter_output_tokens", 0)) + self._usage_tokens(usage, "completion_tokens")
 
         return {
             "draft_answer": str(parsed.draft_answer).strip(),
             "reasoning": str(parsed.reasoning).strip(),
             "evidence_quotes": [str(item).strip() for item in parsed.quotes if str(item).strip()],
+            "drafter_model_name": str(self.config.llm_params.model_name),
+            "drafter_input_tokens": drafter_input_tokens,
+            "drafter_output_tokens": drafter_output_tokens,
             "llm_input_tokens": llm_input_tokens,
             "llm_output_tokens": llm_output_tokens,
         }
@@ -323,20 +328,73 @@ class P5Ver1_Pipeline(P3_Pipeline):
         usage = getattr(completion, "usage", None)
         llm_input_tokens = int(state.get("llm_input_tokens", 0)) + self._usage_tokens(usage, "prompt_tokens")
         llm_output_tokens = int(state.get("llm_output_tokens", 0)) + self._usage_tokens(usage, "completion_tokens")
+        critic_input_tokens = int(state.get("critic_input_tokens", 0)) + self._usage_tokens(usage, "prompt_tokens")
+        critic_output_tokens = int(state.get("critic_output_tokens", 0)) + self._usage_tokens(usage, "completion_tokens")
 
         next_loop_count = loop_count + 1
+        force_finalize = next_loop_count >= 2 and status in {"REVISE", "RE_RETRIEVE"}
+        if force_finalize:
+            feedback = (
+                f"{feedback} | max_loops_fallback_applied"
+                if feedback
+                else "max_loops_fallback_applied"
+            )
+
+        query_used = str(state.get("new_search_query", "")).strip() if loop_count > 0 else question
+        if not query_used:
+            query_used = question
+        retrieved_chunk_ids: List[str] = []
+        for chunk in state.get("retrieved_chunks", []):
+            if not isinstance(chunk, dict):
+                continue
+            chunk_id = str(chunk.get("chunk_id", "")).strip()
+            if chunk_id:
+                retrieved_chunk_ids.append(chunk_id)
+
+        existing_history = state.get("loop_history", [])
+        history_list: List[Dict[str, Any]]
+        if isinstance(existing_history, list):
+            history_list = [item for item in existing_history if isinstance(item, dict)]
+        else:
+            history_list = []
+
+        history_entry: Dict[str, Any] = {
+            "loop_index": int(next_loop_count),
+            "query_used": query_used,
+            "draft_answer": draft_answer,
+            "critic_status": status,
+            "critic_feedback": feedback,
+            "critique_logic": feedback,
+            "new_search_query": new_search_query,
+            "final_answer": final_answer,
+            "is_abstained": bool(is_abstained),
+            "forced_finalize": bool(force_finalize),
+            "retrieved_chunk_count": len(retrieved_chunk_ids),
+            "retrieved_chunk_ids": retrieved_chunk_ids,
+        }
+        loop_history = history_list + [history_entry]
+
         output: Dict[str, Any] = {
             "critic_status": status,
             "critic_feedback": feedback,
             "new_search_query": new_search_query,
             "critique_logic": feedback,
+            "loop_history": loop_history,
             "is_abstained": is_abstained,
+            "critic_model_name": str(critic_model),
+            "critic_input_tokens": critic_input_tokens,
+            "critic_output_tokens": critic_output_tokens,
             "loop_count": next_loop_count,
             "llm_input_tokens": llm_input_tokens,
             "llm_output_tokens": llm_output_tokens,
         }
-        if status in {"ACCEPT", "ABSTAIN"}:
-            output["model_answer"] = final_answer or draft_answer
+        if status in {"ACCEPT", "ABSTAIN"} or force_finalize:
+            resolved_answer = final_answer or draft_answer
+            if not resolved_answer:
+                resolved_answer = "Not explicitly provided"
+                is_abstained = True
+            output["model_answer"] = resolved_answer
+            output["is_abstained"] = is_abstained
         return output
 
     def route_after_critique(self, state: AgentState) -> str:

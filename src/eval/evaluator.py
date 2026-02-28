@@ -97,7 +97,10 @@ DEFAULT_EVAL_CONFIG: Dict[str, Any] = {
     },
     "pricing": {
         "embedding": {"text-embedding-3-small": 0.02, "text-embedding-3-large": 0.13},
-        "llm": {"gpt-4o-mini": {"input_per_million": 0.15, "output_per_million": 0.6}},
+        "llm": {
+            "gpt-4o-mini": {"input_per_million": 0.15, "output_per_million": 0.6},
+            "gpt-4o": {"input_per_million": 2.5, "output_per_million": 10.0},
+        },
     },
     "judge": {
         "enabled": False,
@@ -357,7 +360,7 @@ class Evaluator:
         top_chunks = retrieval.get("top_chunks", [])
         chunks: List[Dict[str, Any]] = []
         if isinstance(top_chunks, list):
-            for idx, chunk in enumerate(top_chunks[:k], start=1):
+            for idx, chunk in enumerate(top_chunks, start=1):
                 if not isinstance(chunk, dict):
                     continue
                 chunk_row: Dict[str, Any] = {
@@ -496,6 +499,36 @@ class Evaluator:
                 if critique_logic == "":
                     critique_logic = None
 
+                raw_loop_count = generation_payload.get("loop_count")
+                loop_count: int
+                try:
+                    loop_count = int(raw_loop_count)
+                except (TypeError, ValueError):
+                    loop_count = 0
+                if loop_count < 0:
+                    loop_count = 0
+
+                raw_critic_status = generation_payload.get("critic_status")
+                critic_status = str(raw_critic_status).strip() if raw_critic_status is not None else ""
+
+                raw_critic_feedback = generation_payload.get("critic_feedback")
+                critic_feedback = str(raw_critic_feedback).strip() if raw_critic_feedback is not None else ""
+
+                raw_new_search_query = generation_payload.get("new_search_query")
+                new_search_query = str(raw_new_search_query).strip() if raw_new_search_query is not None else ""
+
+                raw_loop_history = generation_payload.get("loop_history", [])
+                loop_history: List[Dict[str, Any]] = []
+                if isinstance(raw_loop_history, list):
+                    for step in raw_loop_history:
+                        if not isinstance(step, dict):
+                            continue
+                        normalized_step: Dict[str, Any] = {}
+                        for key, value in step.items():
+                            normalized_step[str(key)] = value
+                        if normalized_step:
+                            loop_history.append(normalized_step)
+
                 raw_evidence_quotes = generation_payload.get("evidence_quotes", [])
                 if isinstance(raw_evidence_quotes, list):
                     evidence_quotes = [str(item).strip() for item in raw_evidence_quotes if str(item).strip()]
@@ -633,6 +666,11 @@ class Evaluator:
                         "reasoning": reasoning,
                         "evidence_quotes": evidence_quotes,
                         "critique_logic": critique_logic,
+                        "loop_history": loop_history,
+                        "loop_count": loop_count,
+                        "critic_status": critic_status,
+                        "critic_feedback": critic_feedback,
+                        "new_search_query": new_search_query,
                     },
                     "qa_score": round(qa_score, 6),
                     "groundedness": round(groundedness, 6),

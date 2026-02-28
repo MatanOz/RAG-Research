@@ -14,7 +14,7 @@ from openai import APIError, APIStatusError, AuthenticationError, OpenAI, Permis
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.state import AgentState
-from src.utils.cost_estimator import estimate_cost_usd, estimate_embedding_only_cost_usd
+from src.utils.cost_estimator import estimate_cost_usd, estimate_embedding_only_cost_usd, estimate_llm_only_cost_usd
 
 
 class ModelsSection(BaseModel):
@@ -56,6 +56,11 @@ class GenerationSection(BaseModel):
     evidence_quotes: Optional[List[str]] = None
     is_abstained: bool = False
     critique_logic: Optional[str] = None
+    loop_history: Optional[List[Dict[str, Any]]] = None
+    loop_count: Optional[int] = Field(default=None, ge=0)
+    critic_status: Optional[str] = None
+    critic_feedback: Optional[str] = None
+    new_search_query: Optional[str] = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -66,6 +71,14 @@ class LogsSection(BaseModel):
     tokens_output: int = Field(ge=0)
     total_tokens: int = Field(ge=0)
     estimated_cost_usd: float = Field(ge=0)
+    drafter_model: Optional[str] = None
+    critic_model: Optional[str] = None
+    drafter_tokens_input: int = Field(default=0, ge=0)
+    drafter_tokens_output: int = Field(default=0, ge=0)
+    critic_tokens_input: int = Field(default=0, ge=0)
+    critic_tokens_output: int = Field(default=0, ge=0)
+    drafter_estimated_cost_usd: float = Field(default=0.0, ge=0)
+    critic_estimated_cost_usd: float = Field(default=0.0, ge=0)
     paper_build_embedding_tokens: int = Field(default=0, ge=0)
     paper_build_estimated_cost_usd: float = Field(default=0.0, ge=0)
     paper_build_included_in_estimated_cost: bool = False
@@ -269,6 +282,66 @@ class BaseGraphPipeline(ABC):
         embedding_tokens = int(final_state.get("embedding_tokens", 0))
         llm_input_tokens = int(final_state.get("llm_input_tokens", 0))
         llm_output_tokens = int(final_state.get("llm_output_tokens", 0))
+
+        raw_drafter_model = final_state.get("drafter_model_name")
+        drafter_model = str(raw_drafter_model).strip() if raw_drafter_model is not None else ""
+        if not drafter_model:
+            drafter_model = str(self.config.llm_params.model_name)
+
+        raw_critic_model = final_state.get("critic_model_name")
+        critic_model = str(raw_critic_model).strip() if raw_critic_model is not None else ""
+        if not critic_model:
+            critic_model = str(getattr(self.config.llm_params, "critic_model_name", "")).strip()
+
+        drafter_tokens_input = max(0, int(final_state.get("drafter_input_tokens", 0)))
+        drafter_tokens_output = max(0, int(final_state.get("drafter_output_tokens", 0)))
+        critic_tokens_input = max(0, int(final_state.get("critic_input_tokens", 0)))
+        critic_tokens_output = max(0, int(final_state.get("critic_output_tokens", 0)))
+
+        has_split_llm_usage = any(
+            value > 0
+            for value in [
+                drafter_tokens_input,
+                drafter_tokens_output,
+                critic_tokens_input,
+                critic_tokens_output,
+            ]
+        )
+
+        drafter_estimated_cost = (
+            estimate_llm_only_cost_usd(
+                llm_model=drafter_model,
+                llm_input_tokens=drafter_tokens_input,
+                llm_output_tokens=drafter_tokens_output,
+            )
+            if has_split_llm_usage
+            else 0.0
+        )
+        critic_estimated_cost = (
+            estimate_llm_only_cost_usd(
+                llm_model=critic_model,
+                llm_input_tokens=critic_tokens_input,
+                llm_output_tokens=critic_tokens_output,
+            )
+            if has_split_llm_usage and critic_model
+            else 0.0
+        )
+
+        embedding_estimated_cost = estimate_embedding_only_cost_usd(
+            self.config.retrieval_params.embedding_model,
+            int(embedding_tokens),
+        )
+        if has_split_llm_usage:
+            estimated_cost_usd = round(embedding_estimated_cost + drafter_estimated_cost + critic_estimated_cost, 8)
+        else:
+            estimated_cost_usd = estimate_cost_usd(
+                embedding_model=self.config.retrieval_params.embedding_model,
+                llm_model=self.config.llm_params.model_name,
+                embedding_input_tokens=embedding_tokens,
+                llm_input_tokens=llm_input_tokens,
+                llm_output_tokens=llm_output_tokens,
+            )
+
         tokens_input = embedding_tokens + llm_input_tokens
         tokens_output = llm_output_tokens
         raw_reasoning = final_state.get("reasoning")
@@ -292,6 +365,48 @@ class BaseGraphPipeline(ABC):
         if critique_logic == "":
             critique_logic = None
         is_abstained = bool(final_state.get("is_abstained", False))
+
+        raw_loop_history = final_state.get("loop_history")
+        loop_history: Optional[List[Dict[str, Any]]]
+        if isinstance(raw_loop_history, list):
+            normalized_history: List[Dict[str, Any]] = []
+            for item in raw_loop_history:
+                if not isinstance(item, dict):
+                    continue
+                normalized_item: Dict[str, Any] = {}
+                for key, value in item.items():
+                    normalized_item[str(key)] = value
+                if normalized_item:
+                    normalized_history.append(normalized_item)
+            loop_history = normalized_history or None
+        else:
+            loop_history = None
+
+        raw_loop_count = final_state.get("loop_count")
+        loop_count: Optional[int]
+        if raw_loop_count is None:
+            loop_count = None
+        else:
+            try:
+                cast_loop = int(raw_loop_count)
+                loop_count = cast_loop if cast_loop >= 0 else None
+            except (TypeError, ValueError):
+                loop_count = None
+
+        raw_critic_status = final_state.get("critic_status")
+        critic_status = str(raw_critic_status).strip() if raw_critic_status is not None else None
+        if critic_status == "":
+            critic_status = None
+
+        raw_critic_feedback = final_state.get("critic_feedback")
+        critic_feedback = str(raw_critic_feedback).strip() if raw_critic_feedback is not None else None
+        if critic_feedback == "":
+            critic_feedback = None
+
+        raw_new_search_query = final_state.get("new_search_query")
+        new_search_query = str(raw_new_search_query).strip() if raw_new_search_query is not None else None
+        if new_search_query == "":
+            new_search_query = None
 
         payload = {
             "run_id": self.run_id,
@@ -326,19 +441,26 @@ class BaseGraphPipeline(ABC):
                 "evidence_quotes": evidence_quotes,
                 "is_abstained": is_abstained,
                 "critique_logic": critique_logic,
+                "loop_history": loop_history,
+                "loop_count": loop_count,
+                "critic_status": critic_status,
+                "critic_feedback": critic_feedback,
+                "new_search_query": new_search_query,
             },
             "logs": {
                 "latency_ms": round(latency_ms, 3),
                 "tokens_input": int(tokens_input),
                 "tokens_output": int(tokens_output),
                 "total_tokens": int(tokens_input + tokens_output),
-                "estimated_cost_usd": estimate_cost_usd(
-                    embedding_model=self.config.retrieval_params.embedding_model,
-                    llm_model=self.config.llm_params.model_name,
-                    embedding_input_tokens=embedding_tokens,
-                    llm_input_tokens=llm_input_tokens,
-                    llm_output_tokens=llm_output_tokens,
-                ),
+                "estimated_cost_usd": estimated_cost_usd,
+                "drafter_model": drafter_model if has_split_llm_usage else None,
+                "critic_model": critic_model if has_split_llm_usage and critic_model else None,
+                "drafter_tokens_input": int(drafter_tokens_input if has_split_llm_usage else 0),
+                "drafter_tokens_output": int(drafter_tokens_output if has_split_llm_usage else 0),
+                "critic_tokens_input": int(critic_tokens_input if has_split_llm_usage else 0),
+                "critic_tokens_output": int(critic_tokens_output if has_split_llm_usage else 0),
+                "drafter_estimated_cost_usd": float(drafter_estimated_cost if has_split_llm_usage else 0.0),
+                "critic_estimated_cost_usd": float(critic_estimated_cost if has_split_llm_usage else 0.0),
                 "paper_build_embedding_tokens": int(paper_build_embedding_tokens),
                 "paper_build_estimated_cost_usd": estimate_embedding_only_cost_usd(
                     self.config.retrieval_params.embedding_model,

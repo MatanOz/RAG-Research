@@ -1,0 +1,32 @@
+project_name: chemical_rag_research
+pipeline_version: P5_ver1
+
+retrieval_params:
+  embedding_model: text-embedding-3-large
+  chunking_method: semantic_markdown
+  chunk_size: 1000
+  chunk_overlap: 150
+  top_k: 5
+  embedding_batch_size: 64
+
+llm_params:
+  model_name: gpt-4o-mini
+  # P5 critic model (used in critique_node); change this to switch critic strength/cost.
+  critic_model_name: gpt-4.1-mini
+  temperature: 0.0
+  max_tokens: 1024
+
+paths:
+  data_dir: data
+  chroma_dir: data/derived/chroma
+  output_dir: outputs/P5_ver1
+
+run_control:
+  paper_ids: null
+  max_papers: null
+  question_ids: null
+  max_questions_per_paper: null
+
+logging:
+  level: INFO
+  progress_every: 10

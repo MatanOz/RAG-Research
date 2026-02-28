@@ -21,6 +21,7 @@ Scoring rules:
 6) If gold_answer contains concrete facts and model_answer abstains (e.g., "not specified"):
    - semantic_correctness should be near 0.
 7) For partially complete answers (missing required entities/values), do not give full score.
+8) If model_answer contains correct facts but also incorrect/unsubstantiated claims, do not give full score.
 """.strip()
 
 

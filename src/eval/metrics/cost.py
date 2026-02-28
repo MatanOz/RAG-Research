@@ -44,11 +44,38 @@ def estimate_question_cost(record: Mapping[str, Any], pricing: Mapping[str, Any]
     tokens_output = int(logs.get("tokens_output", 0))
     llm_input_tokens_est = max(tokens_input - query_embedding_tokens, 0)
 
-    llm_input_price, llm_output_price = _llm_prices(pricing, llm_model)
-    generation_cost_usd = (
-        (llm_input_tokens_est / 1_000_000.0) * llm_input_price
-        + (tokens_output / 1_000_000.0) * llm_output_price
+    drafter_model = str(logs.get("drafter_model", "") or llm_model)
+    critic_model = str(logs.get("critic_model", "") or "")
+    drafter_tokens_input = int(logs.get("drafter_tokens_input", 0) or 0)
+    drafter_tokens_output = int(logs.get("drafter_tokens_output", 0) or 0)
+    critic_tokens_input = int(logs.get("critic_tokens_input", 0) or 0)
+    critic_tokens_output = int(logs.get("critic_tokens_output", 0) or 0)
+
+    has_split_llm_usage = any(
+        value > 0
+        for value in [
+            drafter_tokens_input,
+            drafter_tokens_output,
+            critic_tokens_input,
+            critic_tokens_output,
+        ]
     )
+
+    if has_split_llm_usage:
+        drafter_input_price, drafter_output_price = _llm_prices(pricing, drafter_model)
+        critic_input_price, critic_output_price = _llm_prices(pricing, critic_model)
+        generation_cost_usd = (
+            (drafter_tokens_input / 1_000_000.0) * drafter_input_price
+            + (drafter_tokens_output / 1_000_000.0) * drafter_output_price
+            + (critic_tokens_input / 1_000_000.0) * critic_input_price
+            + (critic_tokens_output / 1_000_000.0) * critic_output_price
+        )
+    else:
+        llm_input_price, llm_output_price = _llm_prices(pricing, llm_model)
+        generation_cost_usd = (
+            (llm_input_tokens_est / 1_000_000.0) * llm_input_price
+            + (tokens_output / 1_000_000.0) * llm_output_price
+        )
 
     total_eval_cost_usd = query_embedding_cost_usd + generation_cost_usd
     if total_eval_cost_usd <= 0:
@@ -60,4 +87,3 @@ def estimate_question_cost(record: Mapping[str, Any], pricing: Mapping[str, Any]
         "generation_cost_usd": float(generation_cost_usd),
         "total_eval_cost_usd": float(total_eval_cost_usd),
     }
-

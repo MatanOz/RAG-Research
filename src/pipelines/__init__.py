@@ -8,6 +8,7 @@ from src.pipelines.p2_imp_pipeline import P2_Imp_Pipeline
 from src.pipelines.p2_pipeline import P2_Pipeline
 from src.pipelines.p3_pipeline import P3_Pipeline
 from src.pipelines.p4_pipeline import P4_Pipeline
+from src.pipelines.p5_ver1_pipeline import P5Ver1_Pipeline
 
 PIPELINE_REGISTRY = {
     "P0": P0_Pipeline,
@@ -16,6 +17,7 @@ PIPELINE_REGISTRY = {
     "P2_imp": P2_Imp_Pipeline,
     "P3": P3_Pipeline,
     "P4": P4_Pipeline,
+    "P5_ver1": P5Ver1_Pipeline,
 }
 
 __all__ = [
@@ -25,5 +27,6 @@ __all__ = [
     "P2_Pipeline",
     "P3_Pipeline",
     "P4_Pipeline",
+    "P5Ver1_Pipeline",
     "PIPELINE_REGISTRY",
 ]

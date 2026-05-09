@@ -120,8 +120,8 @@
       </section>
 
       <section id="emptyState" class="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-        <h3 class="text-lg font-semibold text-slate-800">No data loaded</h3>
-        <p class="mt-2 text-sm text-slate-600">Upload one or more evaluator output JSON files to render charts and question comparisons.</p>
+        <h3 id="emptyStateTitle" class="text-lg font-semibold text-slate-800">No data loaded</h3>
+        <p id="emptyStateText" class="mt-2 text-sm text-slate-600">Upload one or more evaluator output JSON files to render charts and question comparisons.</p>
       </section>
 
       <section id="dashboardContent" class="hidden space-y-6">
@@ -162,6 +162,22 @@
         </section>
 
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <details open class="rounded-xl border border-slate-200 bg-slate-50">
+            <summary class="cursor-pointer px-4 py-3 text-lg font-semibold text-slate-800">More Insights</summary>
+            <div class="border-t border-slate-200 px-4 py-4">
+              <h3 class="mb-1 text-sm font-semibold text-slate-700">Question-Type-Specific QA Performance</h3>
+              <p class="mb-3 text-xs text-slate-600">Average QA score by question type for each selected pipeline.</p>
+              <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                <table class="min-w-full text-sm">
+                  <thead id="qaByTypeTableHead" class="bg-slate-100 text-slate-700"></thead>
+                  <tbody id="qaByTypeTableBody" class="divide-y divide-slate-200 bg-white"></tbody>
+                </table>
+              </div>
+            </div>
+          </details>
+        </section>
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div class="mb-4 flex items-center justify-between">
             <h2 class="text-lg font-semibold">Micro View: Per-Question Deep Dive</h2>
             <p id="questionCount" class="text-sm text-slate-600">0 questions</p>
@@ -172,6 +188,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="./app.js?v=20260222_eval_dashboard_6"></script>
+    <script src="./app.js?v=20260509_eval_pipeline_visibility"></script>
   </body>
 </html>

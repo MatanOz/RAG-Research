@@ -2,6 +2,7 @@ const state = {
   payloads: [],
   merged: null,
   pipelineLabels: [],
+  pipelineVisibility: {},
   weights: {
     w_qa: 0.6,
     w_gr: 0.2,
@@ -21,10 +22,14 @@ const el = {
   loaderMessage: document.getElementById("loaderMessage"),
   pipelineBadges: document.getElementById("pipelineBadges"),
   emptyState: document.getElementById("emptyState"),
+  emptyStateTitle: document.getElementById("emptyStateTitle"),
+  emptyStateText: document.getElementById("emptyStateText"),
   dashboardContent: document.getElementById("dashboardContent"),
   radarChart: document.getElementById("radarChart"),
   barChart: document.getElementById("barChart"),
   summaryTableBody: document.getElementById("summaryTableBody"),
+  qaByTypeTableHead: document.getElementById("qaByTypeTableHead"),
+  qaByTypeTableBody: document.getElementById("qaByTypeTableBody"),
   questionList: document.getElementById("questionList"),
   questionCount: document.getElementById("questionCount"),
   wQa: document.getElementById("wQa"),
@@ -279,7 +284,7 @@ function mergePayloads(payloadEntries) {
 
       current.paper_id = normalizePaperId(questionRow.paper_id) ?? current.paper_id;
       current.question_type = String(
-        pickFirstNonEmpty([current.question_type, questionRow.question_type, "FREE_TEXT"]),
+        pickFirstNonEmpty([questionRow.question_type, current.question_type, "FREE_TEXT"]),
       ).toUpperCase();
       current.question_text = String(pickFirstNonEmpty([current.question_text, questionRow.question_text]));
       current.gold_answer = String(pickFirstNonEmpty([current.gold_answer, questionRow.gold_answer]));
@@ -429,6 +434,18 @@ function collectPipelineLabels(merged) {
   return [...labels].sort();
 }
 
+function syncPipelineVisibility(labels) {
+  const nextVisibility = {};
+  labels.forEach((label) => {
+    nextVisibility[label] = state.pipelineVisibility[label] !== false;
+  });
+  state.pipelineVisibility = nextVisibility;
+}
+
+function getVisiblePipelineLabels() {
+  return state.pipelineLabels.filter((label) => state.pipelineVisibility[label] !== false);
+}
+
 function buildPipelineStats(merged, labels) {
   return labels.map((label) => {
     const summary = merged.summary_metrics[label] || {};
@@ -493,6 +510,12 @@ function pipelineColor(index, total) {
   };
 }
 
+function colorForPipeline(label, fallbackIndex = 0) {
+  const labels = state.pipelineLabels.length ? state.pipelineLabels : [label];
+  const index = labels.indexOf(label);
+  return pipelineColor(index >= 0 ? index : fallbackIndex, labels.length);
+}
+
 function destroyCharts() {
   if (state.charts.radar) {
     state.charts.radar.destroy();
@@ -508,10 +531,9 @@ function renderCharts(stats) {
   destroyCharts();
 
   const radarLabels = ["Final Score", "QA Score", "Groundedness", "Retrieval", "Efficiency"];
-  const total = stats.length;
 
   const radarDatasets = stats.map((row, idx) => {
-    const color = pipelineColor(idx, total);
+    const color = colorForPipeline(row.label, idx);
     return {
       label: row.label,
       data: [
@@ -563,8 +585,8 @@ function renderCharts(stats) {
         {
           label: "Final Score",
           data: stats.map((s) => s.finalScore),
-          backgroundColor: stats.map((_, idx) => pipelineColor(idx, total).solid),
-          borderColor: stats.map((_, idx) => pipelineColor(idx, total).stroke),
+          backgroundColor: stats.map((s, idx) => colorForPipeline(s.label, idx).solid),
+          borderColor: stats.map((s, idx) => colorForPipeline(s.label, idx).stroke),
           borderWidth: 1,
           borderRadius: 8,
         },
@@ -674,6 +696,134 @@ function renderSummaryTable(stats) {
   }
 }
 
+function clearQaByTypeSection() {
+  if (el.qaByTypeTableHead) {
+    el.qaByTypeTableHead.innerHTML = "";
+  }
+  if (el.qaByTypeTableBody) {
+    el.qaByTypeTableBody.innerHTML = "";
+  }
+}
+
+function buildQaByTypeStats(merged, labels) {
+  const byType = new Map();
+
+  for (const row of merged.per_question_comparisons || []) {
+    const type = String(row.question_type || "FREE_TEXT").toUpperCase();
+    if (!byType.has(type)) {
+      byType.set(type, {
+        type,
+        questionCount: 0,
+        pipelineScores: Object.fromEntries(labels.map((label) => [label, []])),
+      });
+    }
+    const bucket = byType.get(type);
+    bucket.questionCount += 1;
+
+    labels.forEach((label) => {
+      const pdata = row.pipelines?.[label];
+      if (!pdata || typeof pdata !== "object") {
+        return;
+      }
+      bucket.pipelineScores[label].push(toNumber(pdata.qa_score, 0));
+    });
+  }
+
+  return [...byType.values()]
+    .map((bucket) => {
+      const pipelines = {};
+      labels.forEach((label) => {
+        const scores = bucket.pipelineScores[label] || [];
+        pipelines[label] = {
+          avgQa: average(scores),
+          count: scores.length,
+        };
+      });
+      return {
+        type: bucket.type,
+        questionCount: bucket.questionCount,
+        pipelines,
+      };
+    })
+    .sort((a, b) => a.type.localeCompare(b.type));
+}
+
+function renderQaByTypeSection(statsByType, labels) {
+  if (!el.qaByTypeTableHead || !el.qaByTypeTableBody) {
+    return;
+  }
+
+  el.qaByTypeTableHead.innerHTML = "";
+  el.qaByTypeTableBody.innerHTML = "";
+
+  const headRow = document.createElement("tr");
+  const typeTh = document.createElement("th");
+  typeTh.className = "px-3 py-2 text-left font-semibold";
+  typeTh.textContent = "Question Type";
+  headRow.appendChild(typeTh);
+
+  const countTh = document.createElement("th");
+  countTh.className = "px-3 py-2 text-right font-semibold";
+  countTh.textContent = "Questions";
+  headRow.appendChild(countTh);
+
+  labels.forEach((label) => {
+    const th = document.createElement("th");
+    th.className = "px-3 py-2 text-right font-semibold";
+    th.textContent = label;
+    headRow.appendChild(th);
+  });
+  el.qaByTypeTableHead.appendChild(headRow);
+
+  if (!statsByType.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 2 + labels.length;
+    td.className = "px-3 py-3 text-sm text-slate-500";
+    td.textContent = "No question-type metrics available.";
+    tr.appendChild(td);
+    el.qaByTypeTableBody.appendChild(tr);
+    return;
+  }
+
+  statsByType.forEach((stat) => {
+    const tr = document.createElement("tr");
+
+    const typeTd = document.createElement("td");
+    typeTd.className = "px-3 py-2 text-left font-medium text-slate-800";
+    typeTd.textContent = stat.type;
+    tr.appendChild(typeTd);
+
+    const countTd = document.createElement("td");
+    countTd.className = "px-3 py-2 text-right text-slate-700";
+    countTd.textContent = String(toNumber(stat.questionCount, 0));
+    tr.appendChild(countTd);
+
+    const rowValues = labels
+      .map((label) => stat.pipelines?.[label])
+      .filter((info) => info && info.count > 0)
+      .map((info) => info.avgQa);
+    const bestValue = rowValues.length ? Math.max(...rowValues) : null;
+
+    labels.forEach((label) => {
+      const info = stat.pipelines?.[label] || { avgQa: 0, count: 0 };
+      const td = document.createElement("td");
+      td.className = "px-3 py-2 text-right";
+      if (info.count === 0) {
+        td.textContent = "-";
+      } else {
+        td.textContent = `${formatDecimal(info.avgQa, 3)} (n=${info.count})`;
+        if (bestValue !== null && info.avgQa === bestValue) {
+          td.classList.add("best-value");
+        }
+      }
+      tr.appendChild(td);
+    });
+
+    el.qaByTypeTableBody.appendChild(tr);
+  });
+}
+
 function qaBadgeClass(score) {
   const s = toNumber(score, 0);
   if (s >= 0.8) {
@@ -701,14 +851,31 @@ function renderPipelineBadges(labels) {
   }
 
   labels.forEach((label, idx) => {
-    const color = pipelineColor(idx, labels.length);
-    const span = document.createElement("span");
-    span.className = "rounded-full border px-3 py-1 text-xs font-semibold";
-    span.style.borderColor = color.stroke;
-    span.style.backgroundColor = color.soft;
-    span.style.color = color.stroke;
-    span.textContent = label;
-    el.pipelineBadges.appendChild(span);
+    const color = colorForPipeline(label, idx);
+    const isVisible = state.pipelineVisibility[label] !== false;
+
+    const toggle = document.createElement("label");
+    toggle.className = "flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition";
+    toggle.style.borderColor = isVisible ? color.stroke : "#cbd5e1";
+    toggle.style.backgroundColor = isVisible ? color.soft : "#f8fafc";
+    toggle.style.color = isVisible ? color.stroke : "#64748b";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = isVisible;
+    checkbox.className = "h-3.5 w-3.5 accent-sky-600";
+    checkbox.addEventListener("change", () => {
+      state.pipelineVisibility[label] = checkbox.checked;
+      rerender();
+    });
+
+    const text = document.createElement("span");
+    text.className = isVisible ? "" : "line-through";
+    text.textContent = label;
+
+    toggle.appendChild(checkbox);
+    toggle.appendChild(text);
+    el.pipelineBadges.appendChild(toggle);
   });
 }
 
@@ -877,7 +1044,7 @@ function renderQuestionCards(merged, labels) {
 
     labels.forEach((label, idx) => {
       const pdata = question.pipelines?.[label];
-      const color = pipelineColor(idx, labels.length);
+      const color = colorForPipeline(label, idx);
 
       const card = document.createElement("article");
       card.className = "rounded-lg border border-slate-200 bg-slate-50 p-3";
@@ -1143,6 +1310,15 @@ function renderQuestionCards(merged, labels) {
   }
 }
 
+function setEmptyState(title, text) {
+  if (el.emptyStateTitle) {
+    el.emptyStateTitle.textContent = title;
+  }
+  if (el.emptyStateText) {
+    el.emptyStateText.textContent = text;
+  }
+}
+
 function toggleDashboardVisibility(hasData) {
   el.emptyState.classList.toggle("hidden", hasData);
   el.dashboardContent.classList.toggle("hidden", !hasData);
@@ -1152,10 +1328,16 @@ function rerender() {
   if (!state.payloads.length) {
     state.merged = null;
     state.pipelineLabels = [];
+    state.pipelineVisibility = {};
+    setEmptyState(
+      "No data loaded",
+      "Upload one or more evaluator output JSON files to render charts and question comparisons.",
+    );
     toggleDashboardVisibility(false);
     renderPipelineBadges([]);
     destroyCharts();
     el.summaryTableBody.innerHTML = "";
+    clearQaByTypeSection();
     el.questionList.innerHTML = "";
     el.questionCount.textContent = "0 questions";
     return;
@@ -1163,27 +1345,60 @@ function rerender() {
 
   state.merged = mergePayloads(state.payloads);
   state.pipelineLabels = collectPipelineLabels(state.merged);
+  syncPipelineVisibility(state.pipelineLabels);
 
   if (!state.pipelineLabels.length) {
+    state.pipelineVisibility = {};
+    setEmptyState(
+      "No pipeline data found",
+      "Upload evaluator JSON files that contain summary metrics or per-question pipeline comparisons.",
+    );
     toggleDashboardVisibility(false);
     renderPipelineBadges([]);
+    destroyCharts();
+    el.summaryTableBody.innerHTML = "";
+    clearQaByTypeSection();
+    el.questionList.innerHTML = "";
+    el.questionCount.textContent = "0 questions";
     setLoaderMessage("No valid pipeline metrics detected after merge.", "error");
     return;
   }
 
-  const stats = buildPipelineStats(state.merged, state.pipelineLabels);
+  const visiblePipelineLabels = getVisiblePipelineLabels();
+  renderPipelineBadges(state.pipelineLabels);
+
+  if (!visiblePipelineLabels.length) {
+    setEmptyState(
+      "No pipelines selected",
+      "Check one or more detected pipelines in the data loader to render the dashboard.",
+    );
+    toggleDashboardVisibility(false);
+    destroyCharts();
+    el.summaryTableBody.innerHTML = "";
+    clearQaByTypeSection();
+    el.questionList.innerHTML = "";
+    el.questionCount.textContent = "0 questions";
+    setLoaderMessage(
+      `Loaded ${state.payloads.length} file(s). Detected pipelines: ${state.pipelineLabels.join(", ")}. No pipelines selected.`,
+      "info",
+    );
+    return;
+  }
+
+  const stats = buildPipelineStats(state.merged, visiblePipelineLabels);
   applyDynamicScores(stats);
 
-  renderPipelineBadges(state.pipelineLabels);
   renderCharts(stats);
   renderSummaryTable(stats);
-  renderQuestionCards(state.merged, state.pipelineLabels);
+  renderQaByTypeSection(buildQaByTypeStats(state.merged, visiblePipelineLabels), visiblePipelineLabels);
+  renderQuestionCards(state.merged, visiblePipelineLabels);
 
   toggleDashboardVisibility(true);
   const missingPaperIds = state.merged.per_question_comparisons.filter((row) => normalizePaperId(row.paper_id) === null).length;
   let missingEvidenceRows = 0;
   state.merged.per_question_comparisons.forEach((row) => {
-    Object.values(row.pipelines || {}).forEach((pdata) => {
+    visiblePipelineLabels.forEach((label) => {
+      const pdata = row.pipelines?.[label];
       if (!pdata || typeof pdata !== "object") {
         return;
       }
@@ -1196,6 +1411,7 @@ function rerender() {
     });
   });
 
+  const hiddenPipelineLabels = state.pipelineLabels.filter((label) => state.pipelineVisibility[label] === false);
   const warningParts = [];
   if (missingPaperIds > 0) {
     warningParts.push(`${missingPaperIds} legacy rows missing paper_id`);
@@ -1203,9 +1419,12 @@ function rerender() {
   if (missingEvidenceRows > 0) {
     warningParts.push(`${missingEvidenceRows} rows missing evidence export fields`);
   }
+  const visibilitySuffix = hiddenPipelineLabels.length
+    ? ` Visible pipelines: ${visiblePipelineLabels.join(", ")}. Hidden: ${hiddenPipelineLabels.join(", ")}.`
+    : "";
   const warningSuffix = warningParts.length ? ` | Note: ${warningParts.join("; ")}.` : "";
   setLoaderMessage(
-    `Loaded ${state.payloads.length} file(s). Detected pipelines: ${state.pipelineLabels.join(", ")}.${warningSuffix}`,
+    `Loaded ${state.payloads.length} file(s). Detected pipelines: ${state.pipelineLabels.join(", ")}.${visibilitySuffix}${warningSuffix}`,
     warningParts.length ? "info" : "success",
   );
 }

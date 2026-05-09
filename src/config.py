@@ -31,6 +31,7 @@ class RetrievalParams(BaseModel):
 class LLMParams(BaseModel):
     model_name: str
     critic_model_name: Optional[str] = None
+    max_loops: int = Field(default=2, ge=1)
     temperature: float
     max_tokens: int = Field(gt=0)
 

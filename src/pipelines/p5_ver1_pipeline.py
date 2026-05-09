@@ -81,6 +81,14 @@ class P5Ver1_Pipeline(P3_Pipeline):
             len(CRITIC_MAP),
         )
 
+    def _max_loops(self) -> int:
+        raw = getattr(self.config.llm_params, "max_loops", 2)
+        try:
+            value = int(raw)
+        except (TypeError, ValueError):
+            value = 2
+        return max(1, value)
+
     def retrieve_node(self, state: AgentState) -> Dict[str, Any]:
         if self._active_collection is None:
             raise RuntimeError("No active Chroma collection set for retrieval node.")
@@ -260,6 +268,7 @@ class P5Ver1_Pipeline(P3_Pipeline):
         question_type = str(state.get("question_type", "FREE_TEXT")).upper()
         draft_answer = str(state.get("draft_answer", ""))
         loop_count = int(state.get("loop_count", 0))
+        max_loops = self._max_loops()
         critic_model = getattr(self.config.llm_params, "critic_model_name", "gpt-4o")
 
         system_prompt = (
@@ -318,10 +327,11 @@ class P5Ver1_Pipeline(P3_Pipeline):
         is_abstained = bool(parsed.is_abstained)
 
         self.logger.info(
-            "[Q%s] 🔄 Critic Status: %s | Loop: %s/2 | Feedback: %s",
+            "[Q%s] 🔄 Critic Status: %s | Loop: %s/%s | Feedback: %s",
             state.get("question_id"),
             status,
             loop_count,
+            max_loops,
             feedback,
         )
 
@@ -332,7 +342,7 @@ class P5Ver1_Pipeline(P3_Pipeline):
         critic_output_tokens = int(state.get("critic_output_tokens", 0)) + self._usage_tokens(usage, "completion_tokens")
 
         next_loop_count = loop_count + 1
-        force_finalize = next_loop_count >= 2 and status in {"REVISE", "RE_RETRIEVE"}
+        force_finalize = next_loop_count >= max_loops and status in {"REVISE", "RE_RETRIEVE"}
         if force_finalize:
             feedback = (
                 f"{feedback} | max_loops_fallback_applied"
@@ -400,11 +410,13 @@ class P5Ver1_Pipeline(P3_Pipeline):
     def route_after_critique(self, state: AgentState) -> str:
         status = str(state.get("critic_status", "ACCEPT")).upper()
         loop_count = int(state.get("loop_count", 0))
+        max_loops = self._max_loops()
 
-        if loop_count >= 2 and status in ["REVISE", "RE_RETRIEVE"]:
+        if loop_count >= max_loops and status in ["REVISE", "RE_RETRIEVE"]:
             self.logger.info(
-                "[Q%s] 🛑 Max loops reached (2). Forcing END.",
+                "[Q%s] 🛑 Max loops reached (%s). Forcing END.",
                 state.get("question_id"),
+                max_loops,
             )
             return END
 

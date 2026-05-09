@@ -137,6 +137,13 @@ Open:
 
 Chunking UI usage details are in `chunkingUI/README.md`.
 
+## Architecture Diagrams
+
+Block-based Mermaid flowcharts for `P0` through `P5_ver1` are in:
+
+- `docs/pipeline_flowcharts.md`
+- `docs/pipeline_flowcharts.html` for a browser-rendered version
+
 ## Quick Command Flow
 
 ```bash

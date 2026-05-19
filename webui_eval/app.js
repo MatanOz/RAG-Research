@@ -15,6 +15,17 @@ const state = {
   },
 };
 
+const DEFAULT_PAYLOADS = [
+  {
+    name: "p0_p1_p2_imp_full_eval.json",
+    url: "./data/p0_p1_p2_imp_full_eval.json",
+  },
+  {
+    name: "p3_full_eval.json",
+    url: "./data/p3_full_eval.json",
+  },
+];
+
 const el = {
   fileInput: document.getElementById("fileInput"),
   dropzone: document.getElementById("dropzone"),
@@ -1440,6 +1451,54 @@ async function readJsonFile(file) {
   return ensurePayloadShape(parsed, file.name);
 }
 
+async function readBundledJsonFile(entry) {
+  const response = await fetch(entry.url, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`${entry.name}: request failed with HTTP ${response.status}`);
+  }
+  let parsed;
+  try {
+    parsed = await response.json();
+  } catch (err) {
+    throw new Error(`${entry.name}: invalid JSON (${err.message})`);
+  }
+  return ensurePayloadShape(parsed, entry.name);
+}
+
+async function loadDefaultPayloads() {
+  setLoaderMessage("Loading bundled P0-P3 full evaluation data...", "info");
+
+  const loadedEntries = [];
+  const errors = [];
+
+  for (const entry of DEFAULT_PAYLOADS) {
+    try {
+      const payload = await readBundledJsonFile(entry);
+      loadedEntries.push({
+        name: entry.name,
+        payload,
+      });
+    } catch (err) {
+      errors.push(String(err.message || err));
+    }
+  }
+
+  if (loadedEntries.length) {
+    state.payloads.push(...loadedEntries);
+    rerender();
+  }
+
+  if (errors.length) {
+    const prefix = loadedEntries.length ? "Some bundled files failed to load" : "Bundled data failed to load";
+    setLoaderMessage(`${prefix}: ${errors.join(" | ")}. You can still upload JSON files manually.`, "error");
+    return;
+  }
+
+  if (!loadedEntries.length) {
+    setLoaderMessage("No bundled data loaded. Upload ui_dashboard_data JSON files to begin.", "info");
+  }
+}
+
 async function handleFiles(fileList) {
   const files = [...fileList];
   if (!files.length) {
@@ -1525,8 +1584,12 @@ el.clearBtn.addEventListener("click", clearAllData);
   slider?.addEventListener("input", handleWeightsChange);
 });
 
-readWeightsFromControls();
-renderWeightValues();
-updateWeightWarning();
-rerender();
-setLoaderMessage("Please upload ui_dashboard_data JSON files to begin.", "info");
+async function initializeDashboard() {
+  readWeightsFromControls();
+  renderWeightValues();
+  updateWeightWarning();
+  rerender();
+  await loadDefaultPayloads();
+}
+
+initializeDashboard();

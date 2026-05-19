@@ -11,8 +11,54 @@
     <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
       <header class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">RAG Architecture Evaluation Dashboard</h1>
-        <p class="mt-2 text-sm text-slate-600">Standalone client-side viewer for merged evaluator JSON outputs.</p>
+        <p class="mt-2 text-sm text-slate-600">
+          Standalone client-side viewer for architectural and performance evaluation of RAG pipelines.
+        </p>
       </header>
+
+      <section class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="grid grid-cols-1 gap-5 lg:grid-cols-[1.25fr_0.75fr]">
+          <div>
+            <p class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Project Context</p>
+            <h2 class="text-xl font-semibold text-slate-900">
+              Architectural and Performance Evaluation of Multi-Agent RAG Systems for Chemical Research Information Extraction
+            </h2>
+            <p class="mt-3 text-sm leading-6 text-slate-700">
+              This dashboard presents evaluation outputs from a progress report submitted for the degree of
+              Master of Science in Intelligent Systems Engineering. The research investigates how different
+              Retrieval-Augmented Generation (RAG) architectures influence the accuracy, grounding, and
+              efficiency of scientific question answering over research papers in chemistry and materials science.
+            </p>
+            <p class="mt-3 text-sm leading-6 text-slate-700">
+              As part of the broader research initiative,
+              <span class="font-medium text-slate-900">AI-driven agent-based platform for halide perovskite optimization in solar-driven CO<sub>2</sub> reduction and environmental pollutant remediation</span>,
+              this work contributes to a knowledge-extraction module that can automatically convert scientific
+              literature into structured information. The project designs, implements, and rigorously evaluates
+              a series of RAG pipelines of increasing architectural complexity.
+            </p>
+          </div>
+
+          <aside class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Credits</p>
+            <dl class="mt-3 space-y-3 text-sm">
+              <div>
+                <dt class="font-semibold text-slate-900">Researcher</dt>
+                <dd class="text-slate-700">Matan Oz</dd>
+              </div>
+              <div>
+                <dt class="font-semibold text-slate-900">Supervisor</dt>
+                <dd class="text-slate-700">Dr. Yehudit Aperstein</dd>
+              </div>
+              <div>
+                <dt class="font-semibold text-slate-900">Status</dt>
+                <dd class="text-slate-700">
+                  Progress-report artifact. The displayed pipelines are experimental snapshots and do not represent final research conclusions.
+                </dd>
+              </div>
+            </dl>
+          </aside>
+        </div>
+      </section>
 
       <section class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 class="mb-3 text-sm font-bold uppercase tracking-wider text-slate-500">Agentic Loop Legend</h2>
@@ -62,9 +108,9 @@
         <input id="fileInput" class="hidden" type="file" accept="application/json,.json" multiple />
 
         <div id="dropzone" class="dropzone rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center transition">
-          <p class="text-base font-medium text-slate-800">Drag & drop evaluator JSON files here</p>
+          <p class="text-base font-medium text-slate-800">Drag & drop additional evaluator JSON files here</p>
           <p class="mt-1 text-sm text-slate-500">or click to browse files</p>
-          <p class="mt-3 text-xs text-slate-500">Supports multiple files. Data is merged by pipeline and question_id.</p>
+          <p class="mt-3 text-xs text-slate-500">Bundled P0-P3 full evals load automatically. Uploaded files are merged by pipeline and question_id.</p>
         </div>
 
         <div class="mt-4">
@@ -73,7 +119,7 @@
         </div>
 
         <div id="loaderMessage" class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-          Please upload `ui_dashboard_data*.json` files to begin.
+          Loading bundled P0-P3 full evaluation data...
         </div>
       </section>
 
@@ -186,6 +232,15 @@
         </section>
       </section>
     </div>
+
+    <footer class="border-t border-slate-200 bg-white">
+      <div class="mx-auto max-w-7xl px-4 py-5 text-sm text-slate-600 sm:px-6 lg:px-8">
+        <p>
+          Research dashboard by Matan Oz, supervised by Dr. Yehudit Aperstein, as part of a Master of Science
+          progress report in Intelligent Systems Engineering.
+        </p>
+      </div>
+    </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="./app.js?v=20260509_eval_pipeline_visibility"></script>

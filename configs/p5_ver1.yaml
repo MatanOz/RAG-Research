@@ -13,6 +13,8 @@ llm_params:
   model_name: gpt-4o-mini
   # P5 critic model (used in critique_node); change this to switch critic strength/cost.
   critic_model_name: gpt-4.1-mini
+  # Maximum number of critic passes before forcing finalization.
+  max_loops: 4
   temperature: 0.0
   max_tokens: 1024
 

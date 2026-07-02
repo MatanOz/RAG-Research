@@ -627,6 +627,11 @@ function renderCharts(stats) {
       },
     },
   });
+
+  requestAnimationFrame(() => {
+    state.charts.radar?.resize();
+    state.charts.bar?.resize();
+  });
 }
 
 function bestValueByColumn(stats, columnKey, mode) {
@@ -1407,12 +1412,12 @@ function rerender() {
   const stats = buildPipelineStats(state.merged, visiblePipelineLabels);
   applyDynamicScores(stats);
 
+  toggleDashboardVisibility(true);
   renderCharts(stats);
   renderSummaryTable(stats);
   renderQaByTypeSection(buildQaByTypeStats(state.merged, visiblePipelineLabels), visiblePipelineLabels);
   renderQuestionCards(state.merged, visiblePipelineLabels);
 
-  toggleDashboardVisibility(true);
   const missingPaperIds = state.merged.per_question_comparisons.filter((row) => normalizePaperId(row.paper_id) === null).length;
   let missingEvidenceRows = 0;
   state.merged.per_question_comparisons.forEach((row) => {

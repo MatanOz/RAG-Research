@@ -4,8 +4,8 @@ const state = {
   pipelineLabels: [],
   pipelineVisibility: {},
   weights: {
-    w_qa: 0.6,
-    w_gr: 0.2,
+    w_qa: 0.7,
+    w_gr: 0.1,
     w_ret: 0.1,
     w_eff: 0.1,
   },
@@ -213,8 +213,8 @@ function normalizeMinMax(value, min, max) {
 
 function readWeightsFromControls() {
   state.weights = {
-    w_qa: toNumber(el.wQa?.value, 0.6),
-    w_gr: toNumber(el.wGr?.value, 0.2),
+    w_qa: toNumber(el.wQa?.value, 0.7),
+    w_gr: toNumber(el.wGr?.value, 0.1),
     w_ret: toNumber(el.wRet?.value, 0.1),
     w_eff: toNumber(el.wEff?.value, 0.1),
   };

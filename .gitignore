@@ -5,7 +5,23 @@ __pycache__/
 chroma_db/
 .venv/
 .vscode/
-outputs/
+outputs/*
+!outputs/eval/
+outputs/eval/*
+!outputs/eval/P0_to_P2 eval full.json
+!outputs/eval/p3 eval full.json
+!outputs/eval/p4 full eval.json
+!outputs/eval/p5 eval full.json
 data/derived/
 data/**/*.pdf
+!data/paper_01.pdf
+!data/paper_02.pdf
+!data/paper_03.pdf
+!data/paper_04.pdf
+!data/paper_05.pdf
+!data/paper_06.pdf
+!data/paper_07.pdf
+!data/paper_08.pdf
+!data/paper_09.pdf
+!data/paper_10.pdf
 .venv_py39_backup/

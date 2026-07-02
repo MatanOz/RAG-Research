@@ -90,6 +90,23 @@ Runs are written as JSONL to:
 - `outputs/P4/` for Pipeline 4
 - `outputs/P5_ver1/` for Pipeline 5 (version 1)
 
+Runtime outputs are generated artifacts and are ignored by default. The final
+submission keeps only the selected full evaluation exports under `outputs/eval/`.
+
+## Final Submission Artifacts
+
+The repository includes the durable artifacts needed to inspect the final
+benchmark and reproduce the reported evaluation setup:
+
+- source code, pipeline configs, and documentation
+- the 10 benchmark papers under `data/` (`paper_01.pdf` through `paper_10.pdf`)
+- the Gold Master Q&A/evidence reference under `specs/gold_master_v4_text_plus_ids.json`
+- the final full evaluation exports:
+  - `outputs/eval/P0_to_P2 eval full.json`
+  - `outputs/eval/p3 eval full.json`
+  - `outputs/eval/p4 full eval.json`
+  - `outputs/eval/p5 eval full.json`
+
 ## Evaluation Module
 
 Run offline evaluation on existing run JSONL files:

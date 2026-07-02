@@ -15,6 +15,8 @@ repository includes the implementation, configuration files, evaluation module,
 benchmark papers, Gold Master Q&A data, final evaluation exports, and report
 supporting material.
 
+https://remarkable-sable-718cab.netlify.app/
+
 ## Repository Contents
 
 - `src/`: pipeline implementations, shared state, document processing, and evaluation code

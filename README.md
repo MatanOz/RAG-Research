@@ -20,7 +20,7 @@ supporting material.
 - `src/`: pipeline implementations, shared state, document processing, and evaluation code
 - `configs/`: YAML experiment configurations for the pipeline variants
 - `specs/`: Gold Master Q&A/evidence data, output schema, and instruction maps
-- `data/`: the 10 benchmark chemistry/materials-science papers used in the final evaluation
+- `data/`: the 10 benchmark papers and source gold-question CSV used in the final evaluation
 - `docs/`: methodology draft, architecture diagrams, and report-supporting visual material
 - `webui_eval/`: browser-based evaluation dashboard for inspecting pipeline outputs
 - `run_4_lena/`: additional run package and scripts for a separate P4 evaluation workflow
@@ -123,6 +123,7 @@ benchmark and reproduce the reported evaluation setup:
 
 - source code, pipeline configs, and documentation
 - the 10 benchmark papers under `data/` (`paper_01.pdf` through `paper_10.pdf`)
+- the source gold-question table under `data/gold_questions.csv`
 - the Gold Master Q&A/evidence reference under `specs/gold_master_v4_text_plus_ids.json`
 - the final full evaluation exports:
   - `outputs/eval/P0_to_P2 eval full.json`
@@ -181,10 +182,7 @@ python3 -m http.server 8000
 
 Open:
 
-- Chunking UI (P0/P1 run explorer): `http://localhost:8000/chunkingUI/`
 - Evaluation Dashboard: `http://localhost:8000/webui_eval/`
-
-Chunking UI usage details are in `chunkingUI/README.md`.
 
 ## Architecture Diagrams
 

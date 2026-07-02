@@ -1,0 +1,8 @@
+scripts/__pycache__/
+logs_lena_p4/
+chroma_lena_p4/
+articles_4_lena/
+outputs_lena_p4/
+webui/data/
+data_4_lena/*.xls
+data_4_lena/*.xlsx

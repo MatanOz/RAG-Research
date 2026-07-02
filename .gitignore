@@ -6,12 +6,6 @@ chroma_db/
 .venv/
 .vscode/
 outputs/*
-!outputs/eval/
-outputs/eval/*
-!outputs/eval/P0_to_P2 eval full.json
-!outputs/eval/p3 eval full.json
-!outputs/eval/p4 full eval.json
-!outputs/eval/p5 eval full.json
 data/derived/
 data/**/*.pdf
 !data/paper_01.pdf

@@ -21,9 +21,10 @@ supporting material.
 - `configs/`: YAML experiment configurations for the pipeline variants
 - `specs/`: Gold Master Q&A/evidence data, output schema, and instruction maps
 - `data/`: the 10 benchmark papers and source gold-question CSV used in the final evaluation
+- `results/final_eval/`: curated full evaluation JSONs used for the final report
 - `docs/`: methodology draft, architecture diagrams, and report-supporting visual material
-- `webui_eval/`: browser-based evaluation dashboard for inspecting pipeline outputs
-- `run_4_lena/`: additional run package and scripts for a separate P4 evaluation workflow
+- `apps/`: browser-based viewers for run inspection and evaluation analysis
+- `experiments/lena_p4_run/`: separate P4 evaluation workflow and supporting scripts
 
 ## Quick Start
 
@@ -114,7 +115,8 @@ Runs are written as JSONL to:
 - `outputs/P5_ver1/` for Pipeline 5 (version 1)
 
 Runtime outputs are generated artifacts and are ignored by default. The final
-submission keeps only the selected full evaluation exports under `outputs/eval/`.
+submission keeps only the selected full evaluation exports under
+`results/final_eval/`.
 
 ## Final Submission Artifacts
 
@@ -126,10 +128,10 @@ benchmark and reproduce the reported evaluation setup:
 - the source gold-question table under `data/gold_questions.csv`
 - the Gold Master Q&A/evidence reference under `specs/gold_master_v4_text_plus_ids.json`
 - the final full evaluation exports:
-  - `outputs/eval/P0_to_P2 eval full.json`
-  - `outputs/eval/p3 eval full.json`
-  - `outputs/eval/p4 full eval.json`
-  - `outputs/eval/p5 eval full.json`
+  - `results/final_eval/P0_to_P2_eval_full.json`
+  - `results/final_eval/p3_eval_full.json`
+  - `results/final_eval/p4_eval_full.json`
+  - `results/final_eval/p5_eval_full.json`
 
 ## Credits
 
@@ -182,14 +184,16 @@ python3 -m http.server 8000
 
 Open:
 
-- Evaluation Dashboard: `http://localhost:8000/webui_eval/`
+- Evaluation Dashboard: `http://localhost:8000/apps/evaluation_dashboard/`
+- Run Explorer: `http://localhost:8000/apps/run_explorer/`
+- P0-P3 Q&A Snapshot: `http://localhost:8000/docs/dashboards/p0_to_p3_qa/`
 
 ## Architecture Diagrams
 
 Block-based Mermaid flowcharts for `P0` through `P5_ver1` are in:
 
-- `docs/pipeline_flowcharts.md`
-- `docs/pipeline_flowcharts.html` for a browser-rendered version
+- `docs/flowcharts/pipeline_flowcharts.md`
+- `docs/flowcharts/pipeline_flowcharts.html` for a browser-rendered version
 
 ## Quick Command Flow
 

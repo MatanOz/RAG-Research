@@ -1,0 +1,1108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RAG Pipeline Flowcharts</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+    :root {
+      --bg: #f6efe2;
+      --paper: #fffdf8;
+      --ink: #1f2733;
+      --muted: #5f6876;
+      --line: #ddd4c4;
+      --doc: #d89b1f;
+      --doc-soft: #fff2cf;
+      --ret: #169c83;
+      --ret-soft: #dff8f1;
+      --ans: #db6a3d;
+      --ans-soft: #ffe7dd;
+      --orch: #2f6fdf;
+      --orch-soft: #e3eeff;
+      --logic: #5f6b7a;
+      --logic-soft: #eef2f7;
+      --shadow: 0 18px 50px rgba(35, 42, 52, 0.08);
+      --shadow-sm: 0 10px 26px rgba(35, 42, 52, 0.06);
+      --max: 1240px;
+      --radius-lg: 26px;
+      --radius-md: 18px;
+      --radius-sm: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Space Grotesk", sans-serif;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(216, 155, 31, 0.16), transparent 24%),
+        radial-gradient(circle at 100% 0%, rgba(22, 156, 131, 0.16), transparent 26%),
+        radial-gradient(circle at 100% 100%, rgba(47, 111, 223, 0.14), transparent 22%),
+        linear-gradient(180deg, #f7f1e6 0%, #fbf8f1 35%, #f5efe3 100%);
+      line-height: 1.55;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .shell {
+      width: min(var(--max), calc(100% - 28px));
+      margin: 20px auto 40px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(221, 212, 196, 0.9);
+      border-radius: 30px;
+      background:
+        linear-gradient(135deg, rgba(255, 242, 207, 0.92), rgba(255, 255, 255, 0.94) 32%, rgba(227, 238, 255, 0.9) 100%);
+      box-shadow: var(--shadow);
+      padding: 30px;
+    }
+
+    .hero::before,
+    .hero::after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      filter: blur(6px);
+      opacity: 0.65;
+      pointer-events: none;
+    }
+
+    .hero::before {
+      width: 220px;
+      height: 220px;
+      background: rgba(216, 155, 31, 0.22);
+      top: -80px;
+      left: -60px;
+    }
+
+    .hero::after {
+      width: 240px;
+      height: 240px;
+      background: rgba(22, 156, 131, 0.18);
+      bottom: -110px;
+      right: -70px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 0.82rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 34px;
+      height: 2px;
+      background: linear-gradient(90deg, var(--doc), var(--ret), var(--orch));
+      border-radius: 999px;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    h1 {
+      max-width: 12ch;
+      font-size: clamp(2.4rem, 5vw, 4.4rem);
+      font-weight: 700;
+    }
+
+    h2 {
+      font-size: clamp(1.45rem, 2.2vw, 2.1rem);
+      font-weight: 700;
+    }
+
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .hero-grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
+      gap: 26px;
+      align-items: start;
+    }
+
+    .lede {
+      margin: 14px 0 0;
+      max-width: 64ch;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .legend-panel,
+    .nav-panel {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(221, 212, 196, 0.86);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .legend-title,
+    .nav-title {
+      margin: 0 0 12px;
+      font-size: 0.9rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .legend {
+      display: grid;
+      gap: 10px;
+    }
+
+    .legend-item {
+      display: grid;
+      grid-template-columns: 16px 1fr;
+      gap: 10px;
+      align-items: start;
+      font-size: 0.95rem;
+    }
+
+    .swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 5px;
+      margin-top: 3px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    }
+
+    .swatch.doc { background: var(--doc-soft); border-color: rgba(216, 155, 31, 0.45); }
+    .swatch.ret { background: var(--ret-soft); border-color: rgba(22, 156, 131, 0.45); }
+    .swatch.ans { background: var(--ans-soft); border-color: rgba(219, 106, 61, 0.45); }
+    .swatch.orch { background: var(--orch-soft); border-color: rgba(47, 111, 223, 0.45); }
+    .swatch.logic { background: var(--logic-soft); border-color: rgba(95, 107, 122, 0.45); }
+
+    .legend-item strong {
+      display: block;
+      margin-bottom: 2px;
+      font-size: 0.96rem;
+    }
+
+    .hero-side {
+      display: grid;
+      gap: 14px;
+    }
+
+    .nav-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      padding: 0;
+      list-style: none;
+      margin: 0;
+    }
+
+    .nav-grid a {
+      display: block;
+      text-decoration: none;
+      color: var(--ink);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(250, 247, 241, 0.94));
+      border: 1px solid rgba(221, 212, 196, 0.92);
+      border-radius: 14px;
+      padding: 11px 12px;
+      font-size: 0.92rem;
+      box-shadow: 0 8px 18px rgba(35, 42, 52, 0.05);
+      transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+    }
+
+    .nav-grid a:hover {
+      transform: translateY(-1px);
+      border-color: rgba(47, 111, 223, 0.38);
+      box-shadow: 0 12px 24px rgba(35, 42, 52, 0.08);
+    }
+
+    .stack {
+      display: grid;
+      gap: 18px;
+      margin-top: 22px;
+    }
+
+    section {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 252, 246, 0.95));
+      border: 1px solid rgba(221, 212, 196, 0.92);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    section::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto auto 0;
+      width: 100%;
+      height: 5px;
+      background: linear-gradient(90deg, var(--doc), var(--ret), var(--ans), var(--orch));
+      opacity: 0.92;
+    }
+
+    .section-head {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .section-note {
+      max-width: 72ch;
+      color: var(--muted);
+      margin: 0;
+      font-size: 0.97rem;
+    }
+
+    .diagram-card {
+      border: 1px solid #e9dece;
+      border-radius: 22px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(252, 249, 244, 0.98));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      padding: 14px 14px 10px;
+      overflow: auto;
+    }
+
+    .diagram-card .caption {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 12px;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+
+    .caption::before {
+      content: "";
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--doc-soft), var(--ret-soft), var(--orch-soft));
+      border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .two-up {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    .mermaid {
+      min-width: 780px;
+      padding-bottom: 8px;
+    }
+
+    .mermaid svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .footer-note {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    code {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.92em;
+      background: #f5efe5;
+      border: 1px solid #e8ddd0;
+      padding: 2px 6px;
+      border-radius: 7px;
+    }
+
+    @media (max-width: 980px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .nav-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .shell {
+        width: min(var(--max), calc(100% - 16px));
+      }
+
+      .hero,
+      section {
+        padding: 18px;
+        border-radius: 22px;
+      }
+
+      .nav-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .mermaid {
+        min-width: 680px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">RAG Research Architecture</div>
+          <h1>Pipeline flowcharts, color-coded by block</h1>
+          <p class="lede">
+            The same color always means the same architectural responsibility:
+            <code>Document</code> is amber, <code>Retrieval</code> is teal,
+            <code>Answering</code> is coral, <code>Reasoning &amp; orchestration</code> is blue,
+            and branching or control logic is slate. That makes the differences between
+            <code>P0</code> and <code>P5_ver1</code> readable at a glance.
+          </p>
+        </div>
+
+        <div class="hero-side">
+          <div class="legend-panel">
+            <p class="legend-title">Color Legend</p>
+            <div class="legend">
+              <div class="legend-item">
+                <span class="swatch doc"></span>
+                <div><strong>Document block</strong> PDF extraction, chunking, metadata, and Chroma build.</div>
+              </div>
+              <div class="legend-item">
+                <span class="swatch ret"></span>
+                <div><strong>Retrieval block</strong> Query embedding, dense search, sparse search, fusion, and selection.</div>
+              </div>
+              <div class="legend-item">
+                <span class="swatch ans"></span>
+                <div><strong>Answering block</strong> Context assembly, draft generation, answer formatting, and evidence output.</div>
+              </div>
+              <div class="legend-item">
+                <span class="swatch orch"></span>
+                <div><strong>Reasoning &amp; orchestration</strong> LangGraph routing, next-step choice, and loop structure.</div>
+              </div>
+              <div class="legend-item">
+                <span class="swatch logic"></span>
+                <div><strong>Decision logic</strong> Conditional branches such as critique gating or loop outcomes.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="nav-panel">
+            <p class="nav-title">Jump To</p>
+            <ul class="nav-grid">
+              <li><a href="#shared">Shared View</a></li>
+              <li><a href="#document-variants">Document Variants</a></li>
+              <li><a href="#p0">P0</a></li>
+              <li><a href="#p1">P1</a></li>
+              <li><a href="#p2">P2</a></li>
+              <li><a href="#p2-imp">P2_imp</a></li>
+              <li><a href="#p3">P3</a></li>
+              <li><a href="#p4">P4</a></li>
+              <li><a href="#p5">P5_ver1</a></li>
+              <li><a href="#evolution">Evolution</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="stack">
+      <section id="shared">
+        <div class="section-head">
+          <h2>Shared Block View</h2>
+          <p class="section-note">
+            All versions share this basic structure. The later versions do not replace the four blocks,
+            they mainly make retrieval smarter and orchestration more agentic.
+          </p>
+        </div>
+        <div class="diagram-card">
+          <p class="caption">Architecture skeleton</p>
+          <pre class="mermaid">
+flowchart LR
+    subgraph D["Document Block"]
+        d1[Paper PDF]
+        d2[Chunking and metadata]
+        d3[Chunk embeddings]
+        d4[(Per-paper Chroma collection)]
+        d1 --> d2 --> d3 --> d4
+    end
+
+    subgraph R["Retrieval Block"]
+        r1[Question]
+        r2[Retrieve top chunks]
+        r3[Retrieved chunk set]
+        r1 --> r2 --> r3
+    end
+
+    subgraph A["Answering Block"]
+        a1[Build context from chunks]
+        a2[Generate answer or draft]
+        a3[Answer payload]
+        a1 --> a2 --> a3
+    end
+
+    subgraph O["Reasoning and Orchestration Block"]
+        o1[LangGraph controller]
+        o2[Select next node]
+        o3[Optional critique or loop]
+        o1 --> o2 --> o3
+    end
+
+    style D fill:#FFF2CF,stroke:#D89B1F,stroke-width:2px,color:#553700
+    style R fill:#DFF8F1,stroke:#169C83,stroke-width:2px,color:#083E34
+    style A fill:#FFE7DD,stroke:#DB6A3D,stroke-width:2px,color:#5A2416
+    style O fill:#E3EEFF,stroke:#2F6FDF,stroke-width:2px,color:#122E5D
+
+    classDef doc fill:#FFF8E8,stroke:#D89B1F,stroke-width:2px,color:#553700
+    classDef ret fill:#ECFCF7,stroke:#169C83,stroke-width:2px,color:#083E34
+    classDef ans fill:#FFF0EA,stroke:#DB6A3D,stroke-width:2px,color:#5A2416
+    classDef orch fill:#EEF4FF,stroke:#2F6FDF,stroke-width:2px,color:#122E5D
+
+    class d1,d2,d3,d4 doc
+    class r1,r2,r3 ret
+    class a1,a2,a3 ans
+    class o1,o2,o3 orch
+
+    d4 -. source .-> r2
+    r3 --> a1
+    o2 -. controls .-> r2
+    o3 -. controls .-> a2
+          </pre>
+        </div>
+      </section>
+
+      <section id="document-variants">
+        <div class="section-head">
+          <h2>Document Block Variants</h2>
+          <p class="section-note">
+            The biggest structural jump early on is not retrieval, it is the document representation:
+            <code>P0</code> uses flat character windows while <code>P1+</code> uses semantic markdown chunks.
+          </p>
+        </div>
+        <div class="two-up">
+          <div class="diagram-card">
+            <p class="caption">P0 document block</p>
+            <pre class="mermaid">
+flowchart LR
+    p0d1[PDF pages via fitz]
+    p0d2[Concatenate page text]
+    p0d3[Fixed-char chunking]
+    p0d4[Chunk overlap]
+    p0d5[Embed chunks]
+    p0d6[(Chroma collection)]
+
+    classDef doc fill:#FFF6E2,stroke:#D89B1F,stroke-width:2px,color:#553700
+    class p0d1,p0d2,p0d3,p0d4,p0d5,p0d6 doc
+
+    p0d1 --> p0d2 --> p0d3 --> p0d4 --> p0d5 --> p0d6
+            </pre>
+          </div>
+
+          <div class="diagram-card">
+            <p class="caption">P1 to P5 document block</p>
+            <pre class="mermaid">
+flowchart LR
+    sd1[PDF]
+    sd2[Markdown extraction via pymupdf4llm]
+    sd3[Trim references tail]
+    sd4[Detect section headers]
+    sd5[Semantic section chunking]
+    sd6[Add heuristic metadata]
+    sd7[Embed chunks]
+    sd8[(Chroma collection)]
+
+    classDef doc fill:#FFF6E2,stroke:#D89B1F,stroke-width:2px,color:#553700
+    class sd1,sd2,sd3,sd4,sd5,sd6,sd7,sd8 doc
+
+    sd1 --> sd2 --> sd3 --> sd4 --> sd5 --> sd6 --> sd7 --> sd8
+            </pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="p0">
+        <div class="section-head">
+          <h2>P0 Baseline</h2>
+          <p class="section-note">Straight linear RAG: dense retrieval plus one-shot answer generation.</p>
+        </div>
+        <div class="diagram-card">
+          <p class="caption">P0 flow</p>
+          <pre class="mermaid">
+flowchart LR
+    subgraph D["Document Block"]
+        p0d[P0 fixed-char Chroma collection]
+    end
+
+    subgraph R["Retrieval Block"]
+        p0r1[Question]
+        p0r2[Embed question]
+        p0r3[Dense Chroma search]
+        p0r4[Top-k chunks]
+        p0r1 --> p0r2 --> p0r3 --> p0r4
+    end
+
+    subgraph A["Answering Block"]
+        p0a1[Concatenate chunk text]
+        p0a2[One-shot LLM answer]
+        p0a3[Final answer]
+        p0a1 --> p0a2 --> p0a3
+    end
+
+    subgraph O["Reasoning and Orchestration Block"]
+        p0o1[START]
+        p0o2[retrieve_node]
+        p0o3[generate_node]
+        p0o4[END]
+        p0o1 --> p0o2 --> p0o3 --> p0o4
+    end
+
+    style D fill:#FFF2CF,stroke:#D89B1F,stroke-width:2px,color:#553700
+    style R fill:#DFF8F1,stroke:#169C83,stroke-width:2px,color:#083E34
+    style A fill:#FFE7DD,stroke:#DB6A3D,stroke-width:2px,color:#5A2416
+    style O fill:#E3EEFF,stroke:#2F6FDF,stroke-width:2px,color:#122E5D
+
+    classDef doc fill:#FFF8E8,stroke:#D89B1F,stroke-width:2px,color:#553700
+    classDef ret fill:#ECFCF7,stroke:#169C83,stroke-width:2px,color:#083E34
+    classDef ans fill:#FFF0EA,stroke:#DB6A3D,stroke-width:2px,color:#5A2416
+    classDef orch fill:#EEF4FF,stroke:#2F6FDF,stroke-width:2px,color:#122E5D
+
+    class p0d doc
+    class p0r1,p0r2,p0r3,p0r4 ret
+    class p0a1,p0a2,p0a3 ans
+    class p0o1,p0o2,p0o3,p0o4 orch
+
+    p0d -. source .-> p0r3
+    p0r4 --> p0a1
+    p0o2 -. runs .-> p0r3
+    p0o3 -. runs .-> p0a2
+          </pre>
+        </div>
+      </section>
+
+      <section id="p1">
+        <div class="section-head">
+          <h2>P1 Semantic Chunking</h2>
+          <p class="section-note">Same linear graph as P0, but the document block is much more structured.</p>
+        </div>
+        <div class="diagram-card">
+          <p class="caption">P1 flow</p>
+          <pre class="mermaid">
+flowchart LR
+    subgraph D["Document Block"]
+        p1d[Semantic markdown Chroma collection]
+    end
+
+    subgraph R["Retrieval Block"]
+        p1r1[Question]
+        p1r2[Embed question]
+        p1r3[Dense Chroma search]
+        p1r4[Top-k semantic chunks]
+        p1r1 --> p1r2 --> p1r3 --> p1r4
+    end
+
+    subgraph A["Answering Block"]
+        p1a1[Concatenate chunk text]
+        p1a2[One-shot LLM answer]
+        p1a3[Final answer]
+        p1a1 --> p1a2 --> p1a3
+    end
+
+    subgraph O["Reasoning and Orchestration Block"]
+        p1o1[START]
+        p1o2[retrieve_node]
+        p1o3[generate_node]
+        p1o4[END]
+        p1o1 --> p1o2 --> p1o3 --> p1o4
+    end
+
+    style D fill:#FFF2CF,stroke:#D89B1F,stroke-width:2px,color:#553700
+    style R fill:#DFF8F1,stroke:#169C83,stroke-width:2px,color:#083E34
+    style A fill:#FFE7DD,stroke:#DB6A3D,stroke-width:2px,color:#5A2416
+    style O fill:#E3EEFF,stroke:#2F6FDF,stroke-width:2px,color:#122E5D
+
+    classDef doc fill:#FFF8E8,stroke:#D89B1F,stroke-width:2px,color:#553700
+    classDef ret fill:#ECFCF7,stroke:#169C83,stroke-width:2px,color:#083E34
+    classDef ans fill:#FFF0EA,stroke:#DB6A3D,stroke-width:2px,color:#5A2416
+    classDef orch fill:#EEF4FF,stroke:#2F6FDF,stroke-width:2px,color:#122E5D
+
+    class p1d doc
+    class p1r1,p1r2,p1r3,p1r4 ret
+    class p1a1,p1a2,p1a3 ans
+    class p1o1,p1o2,p1o3,p1o4 orch
+
+    p1d -. source .-> p1r3
+    p1r4 --> p1a1
+    p1o2 -. runs .-> p1r3
+    p1o3 -. runs .-> p1a2
+          </pre>
+        </div>
+      </section>
+
+      <section id="p2">
+        <div class="section-head">
+          <h2>P2 Hybrid Retrieval</h2>
+          <p class="section-note">
+            The graph stays linear, but retrieval becomes multi-signal by combining dense and sparse search.
+          </p>
+        </div>
+        <div class="diagram-card">
+          <p class="caption">P2 flow</p>
+          <pre class="mermaid">
+flowchart LR
+    subgraph D["Document Block"]
+        p2d[Semantic markdown Chroma collection with metadata]
+    end
+
+    subgraph R["Retrieval Block"]
+        p2q[Question]
+        p2e[Embed question]
+        p2dense[Dense Chroma candidates]
+        p2tok[Tokenize question]
+        p2bm25[BM25 sparse candidates]
+        p2fuse[RRF fusion]
+        p2boost[Metadata boost rules]
+        p2top[Top-k fused chunks]
+
+        p2q --> p2e --> p2dense
+        p2q --> p2tok --> p2bm25
+        p2dense --> p2fuse
+        p2bm25 --> p2fuse --> p2boost --> p2top
+    end
+
+    subgraph A["Answering Block"]
+        p2a1[Concatenate chunk text]
+        p2a2[One-shot LLM answer]
+        p2a3[Final answer]
+        p2a1 --> p2a2 --> p2a3
+    end
+
+    subgraph O["Reasoning and Orchestration Block"]
+        p2o1[START]
+        p2o2[retrieve_node]
+        p2o3[generate_node]
+        p2o4[END]
+        p2o1 --> p2o2 --> p2o3 --> p2o4
+    end
+
+    style D fill:#FFF2CF,stroke:#D89B1F,stroke-width:2px,color:#553700
+    style R fill:#DFF8F1,stroke:#169C83,stroke-width:2px,color:#083E34
+    style A fill:#FFE7DD,stroke:#DB6A3D,stroke-width:2px,color:#5A2416
+    style O fill:#E3EEFF,stroke:#2F6FDF,stroke-width:2px,color:#122E5D
+
+    classDef doc fill:#FFF8E8,stroke:#D89B1F,stroke-width:2px,color:#553700
+    classDef ret fill:#ECFCF7,stroke:#169C83,stroke-width:2px,color:#083E34
+    classDef ans fill:#FFF0EA,stroke:#DB6A3D,stroke-width:2px,color:#5A2416
+    classDef orch fill:#EEF4FF,stroke:#2F6FDF,stroke-width:2px,color:#122E5D
+
+    class p2d doc
+    class p2q,p2e,p2dense,p2tok,p2bm25,p2fuse,p2boost,p2top ret
+    class p2a1,p2a2,p2a3 ans
+    class p2o1,p2o2,p2o3,p2o4 orch
+
+    p2d -. dense source .-> p2dense
+    p2d -. sparse corpus .-> p2bm25
+    p2top --> p2a1
+    p2o2 -. runs .-> p2fuse
+    p2o3 -. runs .-> p2a2
+          </pre>
+        </div>
+      </section>
+
+      <section id="p2-imp">
+        <div class="section-head">
+          <h2>P2 Improved Adaptive Hybrid</h2>
+          <p class="section-note">
+            Retrieval becomes conditional: sparse retrieval is invoked only when question-specific metadata rules make it useful.
+          </p>
+        </div>
+        <div class="diagram-card">
+          <p class="caption">P2_imp flow</p>
+          <pre class="mermaid">
+flowchart LR
+    subgraph D["Document Block"]
+        p2id[Semantic markdown Chroma collection with metadata]
+    end
+
+    subgraph R["Retrieval Block"]
+        p2iq[Question]
+        p2icheck{Boost rules exist?}
+        p2ie[Embed question]
+        p2idense[Dense candidates]
+        p2ibm25[BM25 candidates]
+        p2ifuse[Weighted RRF]
+        p2iboost[Metadata boost]
+        p2itop[Top-k chunks]
+
+        p2iq --> p2icheck
+        p2iq --> p2ie --> p2idense
+        p2icheck -- yes --> p2ibm25
+        p2icheck -- no --> p2iboost
+        p2idense --> p2ifuse
+        p2ibm25 --> p2ifuse --> p2iboost --> p2itop
+        p2idense --> p2iboost
+    end
+
+    subgraph A["Answering Block"]
+        p2ia1[Concatenate chunk text]
+        p2ia2[One-shot LLM answer]
+        p2ia3[Final answer]
+        p2ia1 --> p2ia2 --> p2ia3
+    end
+
+    subgraph O["Reasoning and Orchestration Block"]
+        p2io1[START]
+        p2io2[retrieve_node]
+        p2io3[generate_node]
+        p2io4[END]
+        p2io1 --> p2io2 --> p2io3 --> p2io4
+    end
+
+    style D fill:#FFF2CF,stroke:#D89B1F,stroke-width:2px,color:#553700
+    style R fill:#DFF8F1,stroke:#169C83,stroke-width:2px,color:#083E34
+    style A fill:#FFE7DD,stroke:#DB6A3D,stroke-width:2px,color:#5A2416
+    style O fill:#E3EEFF,stroke:#2F6FDF,stroke-width:2px,color:#122E5D
+
+    classDef doc fill:#FFF8E8,stroke:#D89B1F,stroke-width:2px,color:#553700
+    classDef ret fill:#ECFCF7,stroke:#169C83,stroke-width:2px,color:#083E34
+    classDef ans fill:#FFF0EA,stroke:#DB6A3D,stroke-width:2px,color:#5A2416
+    classDef orch fill:#EEF4FF,stroke:#2F6FDF,stroke-width:2px,color:#122E5D
+    classDef logic fill:#EEF2F7,stroke:#5F6B7A,stroke-width:2px,color:#26303B,stroke-dasharray: 5 3
+
+    class p2id doc
+    class p2iq,p2ie,p2idense,p2ibm25,p2ifuse,p2iboost,p2itop ret
+    class p2ia1,p2ia2,p2ia3 ans
+    class p2io1,p2io2,p2io3,p2io4 orch
+    class p2icheck logic
+
+    p2id -. dense source .-> p2idense
+    p2id -. sparse corpus .-> p2ibm25
+    p2itop --> p2ia1
+    p2io2 -. runs .-> p2itop
+    p2io3 -. runs .-> p2ia2
+          </pre>
+        </div>
+      </section>
+
+      <section id="p3">
+        <div class="section-head">
+          <h2>P3 Adaptive Multi-Query Structured QA</h2>
+          <p class="section-note">
+            Retrieval expands into several queries and answering becomes structured output with reasoning and quotes.
+          </p>
+        </div>
+        <div class="diagram-card">
+          <p class="caption">P3 flow</p>
+          <pre class="mermaid">
+flowchart LR
+    subgraph D["Document Block"]
+        p3d[Semantic markdown Chroma collection with metadata]
+    end
+
+    subgraph R["Retrieval Block"]
+        p3q[Question]
+        p3exp[Query expansion map]
+        p3queries[Original plus up to 2 expanded queries]
+        p3retr[Adaptive hybrid retrieval per query]
+        p3merge[Merge by best chunk score]
+        p3top[Top-5 chunks]
+
+        p3q --> p3exp --> p3queries --> p3retr --> p3merge --> p3top
+    end
+
+    subgraph A["Answering Block"]
+        p3a1[Build retrieved context]
+        p3a2[Structured LLM generation]
+        p3a3[Answer]
+        p3a4[Reasoning]
+        p3a5[Evidence quotes]
+        p3a1 --> p3a2
+        p3a2 --> p3a3
+        p3a2 --> p3a4
+        p3a2 --> p3a5
+    end
+
+    subgraph O["Reasoning and Orchestration Block"]
+        p3o1[START]
+        p3o2[retrieve_node]
+        p3o3[generate_node]
+        p3o4[END]
+        p3o1 --> p3o2 --> p3o3 --> p3o4
+    end
+
+    style D fill:#FFF2CF,stroke:#D89B1F,stroke-width:2px,color:#553700
+    style R fill:#DFF8F1,stroke:#169C83,stroke-width:2px,color:#083E34
+    style A fill:#FFE7DD,stroke:#DB6A3D,stroke-width:2px,color:#5A2416
+    style O fill:#E3EEFF,stroke:#2F6FDF,stroke-width:2px,color:#122E5D
+
+    classDef doc fill:#FFF8E8,stroke:#D89B1F,stroke-width:2px,color:#553700
+    classDef ret fill:#ECFCF7,stroke:#169C83,stroke-width:2px,color:#083E34
+    classDef ans fill:#FFF0EA,stroke:#DB6A3D,stroke-width:2px,color:#5A2416
+    classDef orch fill:#EEF4FF,stroke:#2F6FDF,stroke-width:2px,color:#122E5D
+
+    class p3d doc
+    class p3q,p3exp,p3queries,p3retr,p3merge,p3top ret
+    class p3a1,p3a2,p3a3,p3a4,p3a5 ans
+    class p3o1,p3o2,p3o3,p3o4 orch
+
+    p3d -. source .-> p3retr
+    p3top --> p3a1
+    p3o2 -. runs .-> p3retr
+    p3o3 -. runs .-> p3a2
+          </pre>
+        </div>
+      </section>
+
+      <section id="p4">
+        <div class="section-head">
+          <h2>P4 Draft Plus Conditional Critic</h2>
+          <p class="section-note">
+            The graph branches for the first time: some questions bypass critique, others go through a critic/editor stage.
+          </p>
+        </div>
+        <div class="diagram-card">
+          <p class="caption">P4 flow</p>
+          <pre class="mermaid">
+flowchart LR
+    subgraph D["Document Block"]
+        p4d[Semantic markdown Chroma collection with metadata]
+    end
+
+    subgraph R["Retrieval Block"]
+        p4r1[Question]
+        p4r2[P3 retrieval stack]
+        p4r3[Top-5 chunks]
+        p4r1 --> p4r2 --> p4r3
+    end
+
+    subgraph A["Answering Block"]
+        p4a1[Draft generator]
+        p4a2[Draft answer]
+        p4a3[Reasoning]
+        p4a4[Quotes]
+        p4a5[Critic editor]
+        p4a6[Final answer]
+        p4a1 --> p4a2
+        p4a1 --> p4a3
+        p4a1 --> p4a4
+        p4a5 --> p4a6
+    end
+
+    subgraph O["Reasoning and Orchestration Block"]
+        p4o1[START]
+        p4o2[retrieve_node]
+        p4o3[generate_draft_node]
+        p4o4{Question requires critique?}
+        p4o5[bypass_node]
+        p4o6[critique_node]
+        p4o7[END]
+
+        p4o1 --> p4o2 --> p4o3 --> p4o4
+        p4o4 -- no --> p4o5 --> p4o7
+        p4o4 -- yes --> p4o6 --> p4o7
+    end
+
+    style D fill:#FFF2CF,stroke:#D89B1F,stroke-width:2px,color:#553700
+    style R fill:#DFF8F1,stroke:#169C83,stroke-width:2px,color:#083E34
+    style A fill:#FFE7DD,stroke:#DB6A3D,stroke-width:2px,color:#5A2416
+    style O fill:#E3EEFF,stroke:#2F6FDF,stroke-width:2px,color:#122E5D
+
+    classDef doc fill:#FFF8E8,stroke:#D89B1F,stroke-width:2px,color:#553700
+    classDef ret fill:#ECFCF7,stroke:#169C83,stroke-width:2px,color:#083E34
+    classDef ans fill:#FFF0EA,stroke:#DB6A3D,stroke-width:2px,color:#5A2416
+    classDef orch fill:#EEF4FF,stroke:#2F6FDF,stroke-width:2px,color:#122E5D
+    classDef logic fill:#EEF2F7,stroke:#5F6B7A,stroke-width:2px,color:#26303B,stroke-dasharray: 5 3
+
+    class p4d doc
+    class p4r1,p4r2,p4r3 ret
+    class p4a1,p4a2,p4a3,p4a4,p4a5,p4a6 ans
+    class p4o1,p4o2,p4o3,p4o5,p4o6,p4o7 orch
+    class p4o4 logic
+
+    p4d -. source .-> p4r2
+    p4r3 --> p4a1
+    p4o3 -. runs .-> p4a1
+    p4o5 -. promote draft .-> p4a2
+    p4o6 -. runs .-> p4a5
+          </pre>
+        </div>
+      </section>
+
+      <section id="p5">
+        <div class="section-head">
+          <h2>P5 Ver1 Autonomous Critic Loops</h2>
+          <p class="section-note">
+            The orchestration block becomes fully agentic: the critic can accept, revise, re-retrieve, or abstain.
+          </p>
+        </div>
+        <div class="diagram-card">
+          <p class="caption">P5_ver1 flow</p>
+          <pre class="mermaid">
+flowchart TD
+    subgraph D["Document Block"]
+        p5d[Semantic markdown Chroma collection with metadata]
+    end
+
+    subgraph R["Retrieval Block"]
+        p5r1[Question or critic search query]
+        p5r2[Adaptive hybrid retrieval]
+        p5r3[Merge new chunks with prior chunks]
+        p5r4[Current evidence set]
+        p5r1 --> p5r2 --> p5r3 --> p5r4
+    end
+
+    subgraph A["Answering Block"]
+        p5a1[Drafter]
+        p5a2[Draft answer]
+        p5a3[Reasoning]
+        p5a4[Quotes]
+        p5a1 --> p5a2
+        p5a1 --> p5a3
+        p5a1 --> p5a4
+    end
+
+    subgraph O["Reasoning and Orchestration Block"]
+        p5o1[START]
+        p5o2[retrieve_node]
+        p5o3[generate_draft_node]
+        p5o4[critique_node]
+        p5o5{Critic status}
+        p5o6[ACCEPT]
+        p5o7[REVISE]
+        p5o8[RE_RETRIEVE]
+        p5o9[ABSTAIN]
+        p5o10[END]
+
+        p5o1 --> p5o2 --> p5o3 --> p5o4 --> p5o5
+        p5o5 --> p5o6 --> p5o10
+        p5o5 --> p5o7 --> p5o3
+        p5o5 --> p5o8 --> p5o2
+        p5o5 --> p5o9 --> p5o10
+    end
+
+    style D fill:#FFF2CF,stroke:#D89B1F,stroke-width:2px,color:#553700
+    style R fill:#DFF8F1,stroke:#169C83,stroke-width:2px,color:#083E34
+    style A fill:#FFE7DD,stroke:#DB6A3D,stroke-width:2px,color:#5A2416
+    style O fill:#E3EEFF,stroke:#2F6FDF,stroke-width:2px,color:#122E5D
+
+    classDef doc fill:#FFF8E8,stroke:#D89B1F,stroke-width:2px,color:#553700
+    classDef ret fill:#ECFCF7,stroke:#169C83,stroke-width:2px,color:#083E34
+    classDef ans fill:#FFF0EA,stroke:#DB6A3D,stroke-width:2px,color:#5A2416
+    classDef orch fill:#EEF4FF,stroke:#2F6FDF,stroke-width:2px,color:#122E5D
+    classDef logic fill:#EEF2F7,stroke:#5F6B7A,stroke-width:2px,color:#26303B,stroke-dasharray: 5 3
+
+    class p5d doc
+    class p5r1,p5r2,p5r3,p5r4 ret
+    class p5a1,p5a2,p5a3,p5a4 ans
+    class p5o1,p5o2,p5o3,p5o4,p5o6,p5o7,p5o8,p5o9,p5o10 orch
+    class p5o5 logic
+
+    p5d -. source .-> p5r2
+    p5r4 --> p5a1
+    p5o2 -. runs .-> p5r2
+    p5o3 -. runs .-> p5a1
+    p5o4 -. may add feedback or query .-> p5o5
+          </pre>
+        </div>
+      </section>
+
+      <section id="evolution">
+        <div class="section-head">
+          <h2>Evolution Summary</h2>
+          <p class="section-note">
+            Read left to right: first the document block improves, then retrieval improves, then answering becomes structured,
+            and finally orchestration becomes branched and loop-based.
+          </p>
+        </div>
+        <div class="diagram-card">
+          <p class="caption">Version progression</p>
+          <pre class="mermaid">
+flowchart LR
+    e0["P0&lt;br/&gt;Baseline dense RAG"]
+    e1["P1&lt;br/&gt;Better document block"]
+    e2["P2&lt;br/&gt;Hybrid retrieval"]
+    e3["P2_imp&lt;br/&gt;Adaptive retrieval policy"]
+    e4["P3&lt;br/&gt;Multi-query plus structured answer"]
+    e5["P4&lt;br/&gt;Conditional critic"]
+    e6["P5_ver1&lt;br/&gt;Looping critic controller"]
+
+    classDef neutral fill:#FFF7E8,stroke:#D89B1F,stroke-width:2px,color:#553700
+    classDef ret fill:#ECFCF7,stroke:#169C83,stroke-width:2px,color:#083E34
+    classDef ans fill:#FFF0EA,stroke:#DB6A3D,stroke-width:2px,color:#5A2416
+    classDef orch fill:#EEF4FF,stroke:#2F6FDF,stroke-width:2px,color:#122E5D
+
+    class e0 neutral
+    class e1 neutral
+    class e2,e3 ret
+    class e4 ans
+    class e5,e6 orch
+
+    e0 --> e1 --> e2 --> e3 --> e4 --> e5 --> e6
+          </pre>
+        </div>
+        <p class="footer-note">
+          Serve the repo root with <code>python3 -m http.server 8000</code> and open
+          <code>http://localhost:8000/docs/flowcharts/pipeline_flowcharts.html</code>.
+        </p>
+      </section>
+    </div>
+  </main>
+
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+    mermaid.initialize({
+      startOnLoad: true,
+      securityLevel: "loose",
+      theme: "base",
+      flowchart: {
+        htmlLabels: true,
+        useMaxWidth: true,
+        curve: "basis",
+        padding: 14
+      },
+      themeVariables: {
+        fontFamily: "Space Grotesk, sans-serif",
+        primaryColor: "#ffffff",
+        primaryTextColor: "#1f2733",
+        primaryBorderColor: "#c8cfd9",
+        lineColor: "#5f6876",
+        secondaryColor: "#fbf7ee",
+        tertiaryColor: "#f4efe6",
+        clusterBkg: "#fffaf1",
+        clusterBorder: "#d2d8df",
+        edgeLabelBackground: "#fffdf8"
+      }
+    });
+  </script>
+</body>
+</html>

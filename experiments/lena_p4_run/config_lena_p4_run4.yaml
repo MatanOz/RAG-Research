@@ -1,0 +1,30 @@
+project_name: lena_p4_run_answers
+pipeline_version: P4
+
+retrieval_params:
+  embedding_model: text-embedding-3-large
+  chunking_method: semantic_markdown
+  chunk_size: 1000
+  chunk_overlap: 150
+  top_k: 5
+  embedding_batch_size: 64
+
+llm_params:
+  model_name: gpt-4o-mini
+  temperature: 0.0
+  max_tokens: 2048
+
+paths:
+  data_dir: experiments/lena_p4_run/articles_4_lena
+  chroma_dir: experiments/lena_p4_run/chroma_lena_p4
+  output_dir: experiments/lena_p4_run/outputs_lena_p4
+
+run_control:
+  paper_ids: null
+  max_papers: null
+  question_ids: null
+  max_questions_per_paper: null
+
+logging:
+  level: INFO
+  progress_every: 10

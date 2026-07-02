@@ -1,6 +1,29 @@
 # RAG Research
 
-Config-driven RAG experiments for chemistry PDFs with pluggable pipelines.
+**Architectural and Performance Evaluation of Multi-Agent RAG Systems for Chemical Research Information Extraction**
+
+This repository contains a final MSc research project on retrieval-augmented
+generation (RAG) for chemistry and materials-science papers. The project
+evaluates a family of versioned RAG pipelines (`P0` to `P5`) for extracting
+structured answers from scientific PDFs. Each pipeline changes a controlled
+part of the system, such as document chunking, retrieval, answer generation,
+critic-based correction, or iterative re-retrieval.
+
+The main goal is to compare how architectural choices affect answer accuracy,
+grounding, retrieval quality, hallucination behavior, latency, and cost. The
+repository includes the implementation, configuration files, evaluation module,
+benchmark papers, Gold Master Q&A data, final evaluation exports, and report
+supporting material.
+
+## Repository Contents
+
+- `src/`: pipeline implementations, shared state, document processing, and evaluation code
+- `configs/`: YAML experiment configurations for the pipeline variants
+- `specs/`: Gold Master Q&A/evidence data, output schema, and instruction maps
+- `data/`: the 10 benchmark chemistry/materials-science papers used in the final evaluation
+- `docs/`: methodology draft, architecture diagrams, and report-supporting visual material
+- `webui_eval/`: browser-based evaluation dashboard for inspecting pipeline outputs
+- `run_4_lena/`: additional run package and scripts for a separate P4 evaluation workflow
 
 ## Quick Start
 
@@ -106,6 +129,15 @@ benchmark and reproduce the reported evaluation setup:
   - `outputs/eval/p3 eval full.json`
   - `outputs/eval/p4 full eval.json`
   - `outputs/eval/p5 eval full.json`
+
+## Credits
+
+This work was completed by **Matan Oz** as a final report for the degree of
+**Master of Science in Intelligent Systems Engineering**.
+
+Supervisor: **Dr. Yehudit Aperstein**
+
+School of Software Engineering: Intelligent Systems
 
 ## Evaluation Module
 

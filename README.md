@@ -1,6 +1,30 @@
 # RAG Research
 
-Config-driven RAG experiments for chemistry PDFs with pluggable pipelines.
+**Architectural and Performance Evaluation of Multi-Agent RAG Systems for Chemical Research Information Extraction**
+
+This repository contains a final MSc research project on retrieval-augmented
+generation (RAG) for chemistry and materials-science papers. The project
+evaluates a family of versioned RAG pipelines (`P0` to `P5`) for extracting
+structured answers from scientific PDFs. Each pipeline changes a controlled
+part of the system, such as document chunking, retrieval, answer generation,
+critic-based correction, or iterative re-retrieval.
+
+The main goal is to compare how architectural choices affect answer accuracy,
+grounding, retrieval quality, hallucination behavior, latency, and cost. The
+repository includes the implementation, configuration files, evaluation module,
+benchmark papers, Gold Master Q&A data, final evaluation exports, and report
+supporting material.
+
+## Repository Contents
+
+- `src/`: pipeline implementations, shared state, document processing, and evaluation code
+- `configs/`: YAML experiment configurations for the pipeline variants
+- `specs/`: Gold Master Q&A/evidence data, output schema, and instruction maps
+- `data/`: the 10 benchmark papers and source gold-question CSV used in the final evaluation
+- `results/final_eval/`: curated full evaluation JSONs used for the final report
+- `docs/`: methodology draft, architecture diagrams, and report-supporting visual material
+- `apps/`: browser-based viewers for run inspection and evaluation analysis
+- `experiments/lena_p4_run/`: separate P4 evaluation workflow and supporting scripts
 
 ## Quick Start
 
@@ -90,6 +114,34 @@ Runs are written as JSONL to:
 - `outputs/P4/` for Pipeline 4
 - `outputs/P5_ver1/` for Pipeline 5 (version 1)
 
+Runtime outputs are generated artifacts and are ignored by default. The final
+submission keeps only the selected full evaluation exports under
+`results/final_eval/`.
+
+## Final Submission Artifacts
+
+The repository includes the durable artifacts needed to inspect the final
+benchmark and reproduce the reported evaluation setup:
+
+- source code, pipeline configs, and documentation
+- the 10 benchmark papers under `data/` (`paper_01.pdf` through `paper_10.pdf`)
+- the source gold-question table under `data/gold_questions.csv`
+- the Gold Master Q&A/evidence reference under `specs/gold_master_v4_text_plus_ids.json`
+- the final full evaluation exports:
+  - `results/final_eval/P0_to_P2_eval_full.json`
+  - `results/final_eval/p3_eval_full.json`
+  - `results/final_eval/p4_eval_full.json`
+  - `results/final_eval/p5_eval_full.json`
+
+## Credits
+
+This work was completed by **Matan Oz** as a final report for the degree of
+**Master of Science in Intelligent Systems Engineering**.
+
+Supervisor: **Dr. Yehudit Aperstein**
+
+School of Software Engineering: Intelligent Systems
+
 ## Evaluation Module
 
 Run offline evaluation on existing run JSONL files:
@@ -132,17 +184,16 @@ python3 -m http.server 8000
 
 Open:
 
-- Chunking UI (P0/P1 run explorer): `http://localhost:8000/chunkingUI/`
-- Evaluation Dashboard: `http://localhost:8000/webui_eval/`
-
-Chunking UI usage details are in `chunkingUI/README.md`.
+- Evaluation Dashboard: `http://localhost:8000/apps/evaluation_dashboard/`
+- Run Explorer: `http://localhost:8000/apps/run_explorer/`
+- P0-P3 Q&A Snapshot: `http://localhost:8000/docs/dashboards/p0_to_p3_qa/`
 
 ## Architecture Diagrams
 
 Block-based Mermaid flowcharts for `P0` through `P5_ver1` are in:
 
-- `docs/pipeline_flowcharts.md`
-- `docs/pipeline_flowcharts.html` for a browser-rendered version
+- `docs/flowcharts/pipeline_flowcharts.md`
+- `docs/flowcharts/pipeline_flowcharts.html` for a browser-rendered version
 
 ## Quick Command Flow
 

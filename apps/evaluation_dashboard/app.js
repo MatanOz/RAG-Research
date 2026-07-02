@@ -18,19 +18,19 @@ const state = {
 const DEFAULT_PAYLOADS = [
   {
     name: "P0_to_P2_eval_full.json",
-    url: "../../results/final_eval/P0_to_P2_eval_full.json",
+    url: "./data/P0_to_P2_eval_full.json",
   },
   {
     name: "p3_eval_full.json",
-    url: "../../results/final_eval/p3_eval_full.json",
+    url: "./data/p3_eval_full.json",
   },
   {
     name: "p4_eval_full.json",
-    url: "../../results/final_eval/p4_eval_full.json",
+    url: "./data/p4_eval_full.json",
   },
   {
     name: "p5_eval_full.json",
-    url: "../../results/final_eval/p5_eval_full.json",
+    url: "./data/p5_eval_full.json",
   },
 ];
 
